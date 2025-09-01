@@ -1,0 +1,40 @@
+version: '3.8'
+services:
+  dynamodb:
+    image: amazon/dynamodb-local:2.5.2
+    container_name: chorequest-dynamodb
+    command: ["-jar", "/home/dynamodblocal/DynamoDBLocal.jar", "-sharedDb", "-inMemory"]
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8000/shell/"]
+      interval: 3s
+      timeout: 2s
+      retries: 20
+  api:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    image: chorequest-api:dev
+    container_name: chorequest-api
+    environment:
+      - PORT=8080
+      - AWS_REGION=us-east-1
+      - DYNAMODB_ENDPOINT=http://dynamodb:8000
+      - DYNAMO_AUTO_MIGRATE=1
+      - DYNAMO_TABLE_NAME=chorequest
+      # set JWT_SECRET in your env if desired
+    ports:
+      - "8080:8080"
+    depends_on:
+      - dynamodb
+  web:
+    build:
+      context: ../web
+      dockerfile: Dockerfile
+    image: chorequest-web:dev
+    container_name: chorequest-web
+    ports:
+      - "5173:80"
+    depends_on:
+      - api

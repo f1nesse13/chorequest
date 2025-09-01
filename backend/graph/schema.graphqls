@@ -1,0 +1,102 @@
+# Core domain
+
+enum Role { PARENT CHILD }
+
+type User {
+  id: ID!
+  role: Role!
+  name: String!
+}
+
+type Child {
+  id: ID!
+  parentId: ID!
+  name: String!
+  xp: Int!
+  gold: Int!
+}
+
+type Quest {
+  id: ID!
+  parentId: ID!
+  title: String!
+  description: String
+  xp: Int!
+  gold: Int!
+}
+
+type Assignment {
+  id: ID!
+  quest: Quest!
+  childId: ID!
+  status: String!
+  createdAt: String!
+  completedAt: String
+}
+
+type Reward {
+  id: ID!
+  parentId: ID!
+  name: String!
+  xpThreshold: Int!
+}
+
+type AvatarItem {
+  id: ID!
+  name: String!
+  priceGold: Int!
+}
+
+type Query {
+  health: String!
+
+  # Parent-focused
+  children(parentId: ID!): [Child!]!
+  quests(parentId: ID!): [Quest!]!
+  rewards(parentId: ID!): [Reward!]!
+
+  # Child-focused
+  myAssignments(childId: ID!): [Assignment!]!
+
+  # Billing
+  subscriptionStatus(parentId: ID!): SubscriptionStatus!
+}
+
+input NewChild {
+  parentId: ID!
+  name: String!
+}
+
+input NewQuest {
+  parentId: ID!
+  title: String!
+  description: String
+  xp: Int!
+  gold: Int!
+}
+
+input NewReward {
+  parentId: ID!
+  name: String!
+  xpThreshold: Int!
+}
+
+type Mutation {
+  # Parents
+  createChild(input: NewChild!): Child!
+  createQuest(input: NewQuest!): Quest!
+  assignQuest(questId: ID!, childId: ID!): Assignment!
+  createReward(input: NewReward!): Reward!
+
+  # Children
+  completeAssignment(assignmentId: ID!): Assignment!
+  purchaseItem(childId: ID!, itemName: String!, priceGold: Int!): Child!
+
+  # Billing
+  createCheckoutSession(parentId: ID!, successUrl: String!, cancelUrl: String!): String!
+}
+
+type SubscriptionStatus {
+  active: Boolean!
+  currentPeriodEnd: String
+}
