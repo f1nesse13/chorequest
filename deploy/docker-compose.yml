@@ -17,13 +17,8 @@ services:
       dockerfile: Dockerfile
     image: chorequest-api:dev
     container_name: chorequest-api
-    environment:
-      - PORT=8080
-      - AWS_REGION=us-east-1
-      - DYNAMODB_ENDPOINT=http://dynamodb:8000
-      - DYNAMO_AUTO_MIGRATE=1
-      - DYNAMO_TABLE_NAME=chorequest
-      # set JWT_SECRET in your env if desired
+    env_file:
+      - ./api.env
     ports:
       - "8080:8080"
     depends_on:

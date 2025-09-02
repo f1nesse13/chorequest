@@ -1,0 +1,40 @@
+### Environment files (never commit secrets)
+# Match env files anywhere in the repo, but allow documented examples
+.env
+.env.*
+*.env
+**/.env
+**/.env.*
+**/*.env
+deploy/*.env
+*.env.example
+**/*.env.example
+**/*.example
+
+### Node/JS common
+node_modules/
+dist/
+coverage/
+.eslintcache
+*.log
+logs/
+
+# Vite cache (lives inside node_modules, already ignored, but keep explicit)
+**/.vite
+
+### Editor/OS cruft
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+### Go backend build artifacts
+backend/bin/
+*.exe
+*.test
+*.out
+
+### Capacitor native platforms (generated)
+ios/
+android/
