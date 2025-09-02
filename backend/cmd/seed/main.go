@@ -8,9 +8,11 @@ import (
     "chorequest/backend/internal/db"
     repopkg "chorequest/backend/internal/repo"
     "chorequest/backend/graph/model"
+    "github.com/joho/godotenv"
 )
 
 func main() {
+    _ = godotenv.Load()
     ctx := context.Background()
     client, err := db.New(ctx)
     if err != nil { log.Fatal(err) }
@@ -36,4 +38,3 @@ func main() {
 }
 
 func ptr[T any](v T) *T { return &v }
-
