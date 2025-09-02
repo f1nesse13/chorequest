@@ -7,9 +7,9 @@
 **/.env.*
 **/*.env
 deploy/*.env
-*.env.example
-**/*.env.example
-**/*.example
+!*.env.example
+!**/*.env.example
+!**/*.example
 
 ### Node/JS common
 node_modules/
