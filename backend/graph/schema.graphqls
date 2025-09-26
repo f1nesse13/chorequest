@@ -81,12 +81,28 @@ input NewReward {
   xpThreshold: Int!
 }
 
+input UpdateQuestInput {
+  title: String!
+  description: String
+  xp: Int!
+  gold: Int!
+}
+
+input UpdateRewardInput {
+  name: String!
+  xpThreshold: Int!
+}
+
 type Mutation {
   # Parents
   createChild(input: NewChild!): Child!
   createQuest(input: NewQuest!): Quest!
   assignQuest(questId: ID!, childId: ID!): Assignment!
   createReward(input: NewReward!): Reward!
+  updateQuest(parentId: ID!, questId: ID!, input: UpdateQuestInput!): Quest!
+  deleteQuest(parentId: ID!, questId: ID!): Boolean!
+  updateReward(parentId: ID!, rewardId: ID!, input: UpdateRewardInput!): Reward!
+  deleteReward(parentId: ID!, rewardId: ID!): Boolean!
 
   # Children
   completeAssignment(assignmentId: ID!): Assignment!

@@ -78,6 +78,18 @@ type SubscriptionStatus struct {
 	CurrentPeriodEnd *string `json:"currentPeriodEnd,omitempty"`
 }
 
+type UpdateQuestInput struct {
+	Title       string  `json:"title"`
+	Description *string `json:"description,omitempty"`
+	Xp          int     `json:"xp"`
+	Gold        int     `json:"gold"`
+}
+
+type UpdateRewardInput struct {
+	Name        string `json:"name"`
+	XpThreshold int    `json:"xpThreshold"`
+}
+
 type User struct {
 	ID   string `json:"id"`
 	Role Role   `json:"role"`
