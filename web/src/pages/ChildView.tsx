@@ -3,14 +3,19 @@ import { useMutation, useQuery } from '@apollo/client/react'
 import { useParams, Link } from 'react-router-dom'
 import Header from '../components/Header'
 import Button from '../components/ui/Button'
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card'
+import { Card, CardContent } from '../components/ui/Card'
 
 const Q_ASSIGNMENTS = gql`query($childId: ID!){ myAssignments(childId:$childId){ id status createdAt completedAt quest{ id title xp gold } } }`
 const M_COMPLETE = gql`mutation($assignmentId: ID!){ completeAssignment(assignmentId:$assignmentId){ id status completedAt quest{ id title } } }`
 
 export default function ChildView(){
   const { childId = '' } = useParams()
-  const { data, refetch } = useQuery(Q_ASSIGNMENTS, { variables: { childId } })
+  const { data, refetch } = useQuery(Q_ASSIGNMENTS, {
+    variables: { childId },
+    skip: !childId,
+    fetchPolicy: 'cache-and-network',
+    pollInterval: 5000,
+  })
   const [complete] = useMutation(M_COMPLETE, { onCompleted: () => refetch() })
   const list = (data as any)?.myAssignments ?? []
   return (

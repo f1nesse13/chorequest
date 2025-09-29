@@ -19,6 +19,19 @@ func (r *mutationResolver) CreateChild(ctx context.Context, input model.NewChild
 	return r.Repo.CreateChild(ctx, input)
 }
 
+// UpdateChild is the resolver for the updateChild field.
+func (r *mutationResolver) UpdateChild(ctx context.Context, parentID string, childID string, input model.UpdateChildInput) (*model.Child, error) {
+	return r.Repo.UpdateChild(ctx, parentID, childID, input)
+}
+
+// DeleteChild is the resolver for the deleteChild field.
+func (r *mutationResolver) DeleteChild(ctx context.Context, parentID string, childID string) (bool, error) {
+	if err := r.Repo.DeleteChild(ctx, parentID, childID); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 // CreateQuest is the resolver for the createQuest field.
 func (r *mutationResolver) CreateQuest(ctx context.Context, input model.NewQuest) (*model.Quest, error) {
 	return r.Repo.CreateQuest(ctx, input)

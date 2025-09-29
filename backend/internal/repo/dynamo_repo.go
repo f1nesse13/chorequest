@@ -100,6 +100,79 @@ func (r *DynamoRepo) ListChildren(ctx context.Context, parentID string) ([]*mode
 	return res, nil
 }
 
+func (r *DynamoRepo) UpdateChild(ctx context.Context, parentID, childID string, in model.UpdateChildInput) (*model.Child, error) {
+	out, err := r.DB.UpdateItem(ctx, &dynamodb.UpdateItemInput{
+		TableName: aws.String(r.Table),
+		Key: map[string]types.AttributeValue{
+			"PK": &types.AttributeValueMemberS{Value: pkParent(parentID)},
+			"SK": &types.AttributeValueMemberS{Value: skChild(childID)},
+		},
+		UpdateExpression:         aws.String("SET #N = :name"),
+		ExpressionAttributeNames: map[string]string{"#N": "Name"},
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":name": &types.AttributeValueMemberS{Value: in.Name},
+		},
+		ConditionExpression: aws.String("attribute_exists(PK)"),
+		ReturnValues:        types.ReturnValueAllNew,
+	})
+	if err != nil {
+		return nil, err
+	}
+	var it item
+	if err := attributevalue.UnmarshalMap(out.Attributes, &it); err != nil {
+		return nil, err
+	}
+	id := strings.TrimPrefix(it.SK, "CHILD#")
+	return &model.Child{ID: id, ParentID: it.ParentID, Name: it.Name, Xp: it.XP, Gold: it.Gold}, nil
+}
+
+func (r *DynamoRepo) DeleteChild(ctx context.Context, parentID, childID string) error {
+	childPK := pkChild(childID)
+	out, err := r.DB.Query(ctx, &dynamodb.QueryInput{
+		TableName:              aws.String(r.Table),
+		KeyConditionExpression: aws.String("PK = :pk AND begins_with(SK, :sk)"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":pk": &types.AttributeValueMemberS{Value: childPK},
+			":sk": &types.AttributeValueMemberS{Value: "ASSIGN#"},
+		},
+	})
+	if err != nil {
+		return err
+	}
+	if len(out.Items) > 0 {
+		keys := make([]map[string]types.AttributeValue, 0, len(out.Items))
+		for _, m := range out.Items {
+			var it item
+			if err := attributevalue.UnmarshalMap(m, &it); err != nil {
+				return err
+			}
+			keys = append(keys, map[string]types.AttributeValue{
+				"PK": &types.AttributeValueMemberS{Value: childPK},
+				"SK": &types.AttributeValueMemberS{Value: it.SK},
+			})
+		}
+		for start := 0; start < len(keys); start += 25 {
+			end := start + 25
+			if end > len(keys) {
+				end = len(keys)
+			}
+			batch := make([]types.WriteRequest, 0, end-start)
+			for _, key := range keys[start:end] {
+				batch = append(batch, types.WriteRequest{DeleteRequest: &types.DeleteRequest{Key: key}})
+			}
+			if _, err := r.DB.BatchWriteItem(ctx, &dynamodb.BatchWriteItemInput{RequestItems: map[string][]types.WriteRequest{r.Table: batch}}); err != nil {
+				return err
+			}
+		}
+	}
+	_, err = r.DB.DeleteItem(ctx, &dynamodb.DeleteItemInput{
+		TableName:           aws.String(r.Table),
+		Key:                 map[string]types.AttributeValue{"PK": &types.AttributeValueMemberS{Value: pkParent(parentID)}, "SK": &types.AttributeValueMemberS{Value: skChild(childID)}},
+		ConditionExpression: aws.String("attribute_exists(PK)"),
+	})
+	return err
+}
+
 // Quests
 func (r *DynamoRepo) CreateQuest(ctx context.Context, in model.NewQuest) (*model.Quest, error) {
 	qid := uuid.NewString()

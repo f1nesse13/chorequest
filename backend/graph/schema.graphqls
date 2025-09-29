@@ -67,6 +67,10 @@ input NewChild {
   name: String!
 }
 
+input UpdateChildInput {
+  name: String!
+}
+
 input NewQuest {
   parentId: ID!
   title: String!
@@ -96,6 +100,8 @@ input UpdateRewardInput {
 type Mutation {
   # Parents
   createChild(input: NewChild!): Child!
+  updateChild(parentId: ID!, childId: ID!, input: UpdateChildInput!): Child!
+  deleteChild(parentId: ID!, childId: ID!): Boolean!
   createQuest(input: NewQuest!): Quest!
   assignQuest(questId: ID!, childId: ID!): Assignment!
   createReward(input: NewReward!): Reward!

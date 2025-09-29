@@ -77,9 +77,11 @@ type ComplexityRoot struct {
 		CreateChild           func(childComplexity int, input model.NewChild) int
 		CreateQuest           func(childComplexity int, input model.NewQuest) int
 		CreateReward          func(childComplexity int, input model.NewReward) int
+		DeleteChild           func(childComplexity int, parentID string, childID string) int
 		DeleteQuest           func(childComplexity int, parentID string, questID string) int
 		DeleteReward          func(childComplexity int, parentID string, rewardID string) int
 		PurchaseItem          func(childComplexity int, childID string, itemName string, priceGold int) int
+		UpdateChild           func(childComplexity int, parentID string, childID string, input model.UpdateChildInput) int
 		UpdateQuest           func(childComplexity int, parentID string, questID string, input model.UpdateQuestInput) int
 		UpdateReward          func(childComplexity int, parentID string, rewardID string, input model.UpdateRewardInput) int
 	}
@@ -123,6 +125,8 @@ type ComplexityRoot struct {
 
 type MutationResolver interface {
 	CreateChild(ctx context.Context, input model.NewChild) (*model.Child, error)
+	UpdateChild(ctx context.Context, parentID string, childID string, input model.UpdateChildInput) (*model.Child, error)
+	DeleteChild(ctx context.Context, parentID string, childID string) (bool, error)
 	CreateQuest(ctx context.Context, input model.NewQuest) (*model.Quest, error)
 	AssignQuest(ctx context.Context, questID string, childID string) (*model.Assignment, error)
 	CreateReward(ctx context.Context, input model.NewReward) (*model.Reward, error)
@@ -332,6 +336,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Mutation.CreateReward(childComplexity, args["input"].(model.NewReward)), true
 
+	case "Mutation.deleteChild":
+		if e.complexity.Mutation.DeleteChild == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_deleteChild_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.DeleteChild(childComplexity, args["parentId"].(string), args["childId"].(string)), true
+
 	case "Mutation.deleteQuest":
 		if e.complexity.Mutation.DeleteQuest == nil {
 			break
@@ -367,6 +383,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.PurchaseItem(childComplexity, args["childId"].(string), args["itemName"].(string), args["priceGold"].(int)), true
+
+	case "Mutation.updateChild":
+		if e.complexity.Mutation.UpdateChild == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateChild_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.UpdateChild(childComplexity, args["parentId"].(string), args["childId"].(string), args["input"].(model.UpdateChildInput)), true
 
 	case "Mutation.updateQuest":
 		if e.complexity.Mutation.UpdateQuest == nil {
@@ -575,6 +603,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputNewChild,
 		ec.unmarshalInputNewQuest,
 		ec.unmarshalInputNewReward,
+		ec.unmarshalInputUpdateChildInput,
 		ec.unmarshalInputUpdateQuestInput,
 		ec.unmarshalInputUpdateRewardInput,
 	)
@@ -774,6 +803,22 @@ func (ec *executionContext) field_Mutation_createReward_args(ctx context.Context
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_deleteChild_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "parentId", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["parentId"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "childId", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["childId"] = arg1
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_deleteQuest_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -824,6 +869,27 @@ func (ec *executionContext) field_Mutation_purchaseItem_args(ctx context.Context
 		return nil, err
 	}
 	args["priceGold"] = arg2
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_updateChild_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "parentId", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["parentId"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "childId", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["childId"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUpdateChildInput2chorequestᚋbackendᚋgraphᚋmodelᚐUpdateChildInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg2
 	return args, nil
 }
 
@@ -1675,6 +1741,128 @@ func (ec *executionContext) fieldContext_Mutation_createChild(ctx context.Contex
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_createChild_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_updateChild(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_updateChild(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().UpdateChild(rctx, fc.Args["parentId"].(string), fc.Args["childId"].(string), fc.Args["input"].(model.UpdateChildInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.Child)
+	fc.Result = res
+	return ec.marshalNChild2ᚖchorequestᚋbackendᚋgraphᚋmodelᚐChild(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_updateChild(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Child_id(ctx, field)
+			case "parentId":
+				return ec.fieldContext_Child_parentId(ctx, field)
+			case "name":
+				return ec.fieldContext_Child_name(ctx, field)
+			case "xp":
+				return ec.fieldContext_Child_xp(ctx, field)
+			case "gold":
+				return ec.fieldContext_Child_gold(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Child", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateChild_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_deleteChild(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_deleteChild(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().DeleteChild(rctx, fc.Args["parentId"].(string), fc.Args["childId"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_deleteChild(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_deleteChild_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -5560,6 +5748,33 @@ func (ec *executionContext) unmarshalInputNewReward(ctx context.Context, obj any
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputUpdateChildInput(ctx context.Context, obj any) (model.UpdateChildInput, error) {
+	var it model.UpdateChildInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"name"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "name":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Name = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputUpdateQuestInput(ctx context.Context, obj any) (model.UpdateQuestInput, error) {
 	var it model.UpdateQuestInput
 	asMap := map[string]any{}
@@ -5841,6 +6056,20 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "createChild":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_createChild(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "updateChild":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateChild(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "deleteChild":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_deleteChild(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -6993,6 +7222,11 @@ func (ec *executionContext) marshalNSubscriptionStatus2ᚖchorequestᚋbackend�
 		return graphql.Null
 	}
 	return ec._SubscriptionStatus(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNUpdateChildInput2chorequestᚋbackendᚋgraphᚋmodelᚐUpdateChildInput(ctx context.Context, v any) (model.UpdateChildInput, error) {
+	res, err := ec.unmarshalInputUpdateChildInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) unmarshalNUpdateQuestInput2chorequestᚋbackendᚋgraphᚋmodelᚐUpdateQuestInput(ctx context.Context, v any) (model.UpdateQuestInput, error) {

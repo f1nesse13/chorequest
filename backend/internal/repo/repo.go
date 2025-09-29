@@ -11,6 +11,8 @@ import (
 type Repo interface {
 	CreateChild(ctx context.Context, in model.NewChild) (*model.Child, error)
 	ListChildren(ctx context.Context, parentID string) ([]*model.Child, error)
+	UpdateChild(ctx context.Context, parentID, childID string, in model.UpdateChildInput) (*model.Child, error)
+	DeleteChild(ctx context.Context, parentID, childID string) error
 
 	CreateQuest(ctx context.Context, in model.NewQuest) (*model.Quest, error)
 	ListQuests(ctx context.Context, parentID string) ([]*model.Quest, error)

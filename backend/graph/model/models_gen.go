@@ -78,6 +78,10 @@ type SubscriptionStatus struct {
 	CurrentPeriodEnd *string `json:"currentPeriodEnd,omitempty"`
 }
 
+type UpdateChildInput struct {
+	Name string `json:"name"`
+}
+
 type UpdateQuestInput struct {
 	Title       string  `json:"title"`
 	Description *string `json:"description,omitempty"`

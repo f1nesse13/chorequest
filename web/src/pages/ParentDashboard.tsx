@@ -17,7 +17,9 @@ const Q_CHILDREN = gql`query($parentId: ID!) { children(parentId:$parentId){ id 
 const Q_QUESTS = gql`query($parentId: ID!) { quests(parentId:$parentId){ id title description xp gold parentId } }`
 const Q_REWARDS = gql`query($parentId: ID!) { rewards(parentId:$parentId){ id name xpThreshold parentId } }`
 
-const M_CREATE_CHILD = gql`mutation($parentId: ID!, $name: String!){ createChild(input:{parentId:$parentId,name:$name}){ id name } }`
+const M_CREATE_CHILD = gql`mutation($parentId: ID!, $name: String!){ createChild(input:{parentId:$parentId,name:$name}){ id name xp gold parentId } }`
+const M_UPDATE_CHILD = gql`mutation($parentId: ID!, $childId: ID!, $name: String!){ updateChild(parentId:$parentId, childId:$childId, input:{ name:$name }){ id name xp gold parentId } }`
+const M_DELETE_CHILD = gql`mutation($parentId: ID!, $childId: ID!){ deleteChild(parentId:$parentId, childId:$childId) }`
 const M_CREATE_QUEST = gql`mutation($parentId: ID!, $title: String!, $description: String, $xp: Int!, $gold: Int!){ createQuest(input:{parentId:$parentId,title:$title,description:$description,xp:$xp,gold:$gold}){ id title } }`
 const M_CREATE_REWARD = gql`mutation($parentId: ID!, $name: String!, $xpThreshold: Int!){ createReward(input:{parentId:$parentId,name:$name,xpThreshold:$xpThreshold}){ id name } }`
 const M_ASSIGN = gql`mutation($questId: ID!, $childId: ID!){ assignQuest(questId:$questId, childId:$childId){ id status childId quest{ id title } } }`
@@ -65,10 +67,45 @@ function TrashIcon(props: SVGProps<SVGSVGElement>) {
   )
 }
 
+function CheckIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      {...props}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M20 6L9 17l-5-5" />
+    </svg>
+  )
+}
+
+function XIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      {...props}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M18 6L6 18" />
+      <path d="M6 6l12 12" />
+    </svg>
+  )
+}
+
 export default function ParentDashboard(){
   const { parentId = 'parent-1' } = useParams()
   const auth = useAuth()
   const [childName, setChildName] = useState('')
+  const [editingChildId, setEditingChildId] = useState<string | null>(null)
+  const [childEditName, setChildEditName] = useState('')
   const [questTitle, setQuestTitle] = useState('')
   const [questDesc, setQuestDesc] = useState('')
   const [questXP, setQuestXP] = useState(50)
@@ -81,15 +118,20 @@ export default function ParentDashboard(){
   const [rewardEditDraft, setRewardEditDraft] = useState({ name: '', xpThreshold: 0 })
   const [openQuestActionsId, setOpenQuestActionsId] = useState<string | null>(null)
   const [openRewardActionsId, setOpenRewardActionsId] = useState<string | null>(null)
+  const [showAddChildForm, setShowAddChildForm] = useState(false)
+  const [showAddQuestForm, setShowAddQuestForm] = useState(false)
+  const [showAddRewardForm, setShowAddRewardForm] = useState(false)
 
   const { data: dc, refetch: refetchChildren } = useQuery(Q_CHILDREN, { variables: { parentId } })
   const { data: dq, refetch: refetchQuests } = useQuery(Q_QUESTS, { variables: { parentId } })
   const { data: dr, refetch: refetchRewards } = useQuery(Q_REWARDS, { variables: { parentId } })
   const { data: ds } = useQuery(Q_SUB, { variables: { parentId } })
 
-  const [createChild] = useMutation(M_CREATE_CHILD, { onCompleted: () => { setChildName(''); refetchChildren() } })
-  const [createQuest] = useMutation(M_CREATE_QUEST, { onCompleted: () => { setQuestTitle(''); setQuestDesc(''); refetchQuests() } })
-  const [createReward] = useMutation(M_CREATE_REWARD, { onCompleted: () => { refetchRewards() } })
+  const [createChild] = useMutation(M_CREATE_CHILD, { onCompleted: () => { setChildName(''); setShowAddChildForm(false); refetchChildren() } })
+  const [updateChild] = useMutation(M_UPDATE_CHILD, { onCompleted: () => { setEditingChildId(null); setChildEditName(''); refetchChildren() } })
+  const [deleteChildMutation] = useMutation(M_DELETE_CHILD, { onCompleted: () => { refetchChildren() } })
+  const [createQuest] = useMutation(M_CREATE_QUEST, { onCompleted: () => { setQuestTitle(''); setQuestDesc(''); setShowAddQuestForm(false); refetchQuests() } })
+  const [createReward] = useMutation(M_CREATE_REWARD, { onCompleted: () => { setShowAddRewardForm(false); setRewardName('Movie Night'); setRewardXP(200); refetchRewards() } })
   const [assignQuest] = useMutation(M_ASSIGN, { onCompleted: () => {} })
   const [updateQuest] = useMutation(M_UPDATE_QUEST, { onCompleted: () => { setEditingQuestId(null); setQuestEditDraft({ title: '', description: '', xp: 0, gold: 0 }); refetchQuests() } })
   const [deleteQuestMutation] = useMutation(M_DELETE_QUEST, { onCompleted: () => { refetchQuests() } })
@@ -101,6 +143,26 @@ export default function ParentDashboard(){
   const quests = useMemo(() => (dq as any)?.quests ?? [], [dq])
   const rewards = useMemo(() => (dr as any)?.rewards ?? [], [dr])
   const sub = (ds as any)?.subscriptionStatus
+
+  const startChildEdit = (child: any) => {
+    setEditingChildId(child.id)
+    setChildEditName(child.name ?? '')
+    setShowAddChildForm(false)
+  }
+
+  const cancelChildEdit = () => {
+    setEditingChildId(null)
+    setChildEditName('')
+  }
+
+  const handleDeleteChild = async (childId: string) => {
+    if (!childId) return
+    if (typeof window !== 'undefined' && !window.confirm('Delete this child? This removes their assignments.')) return
+    if (editingChildId === childId) {
+      cancelChildEdit()
+    }
+    await deleteChildMutation({ variables: { parentId, childId } })
+  }
 
   const startQuestEdit = (quest: any) => {
     setOpenQuestActionsId(null)
@@ -180,17 +242,97 @@ export default function ParentDashboard(){
           <CardContent>
           <ul className="mt-3 space-y-2">
             {children.map((c:any) => (
-              <li key={c.id} className="flex items-center justify-between">
-                <span>{c.name} <span className="text-xs text-zinc-500">(xp {c.xp}, gold {c.gold})</span></span>
-                <Link className="text-indigo-600 text-sm" to={`/child/${c.id}`}>View</Link>
+              <li key={c.id} className="rounded border border-transparent p-3 transition-colors hover:border-zinc-200">
+                {editingChildId === c.id ? (
+                  <form
+                    className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
+                    onSubmit={async e => {
+                      e.preventDefault()
+                      if (!editingChildId) return
+                      await updateChild({ variables: { parentId, childId: editingChildId, name: childEditName } })
+                    }}
+                  >
+                    <Input value={childEditName} onChange={e=>setChildEditName(e.target.value)} placeholder="Child name" autoFocus />
+                    <div className="flex gap-2">
+                      <button
+                        type="submit"
+                        className="flex h-9 w-9 items-center justify-center rounded bg-emerald-600 text-white transition-colors hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                        aria-label="Save child"
+                      >
+                        <CheckIcon className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        className="flex h-9 w-9 items-center justify-center rounded bg-rose-600 text-white transition-colors hover:bg-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-300"
+                        aria-label="Cancel edit child"
+                        onClick={cancelChildEdit}
+                      >
+                        <XIcon className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="text-sm">
+                      <span className="font-medium">{c.name}</span>{' '}
+                      <span className="text-xs text-zinc-500">(xp {c.xp}, gold {c.gold})</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Link className="text-indigo-600 text-sm" to={`/child/${c.id}`}>View</Link>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 text-zinc-600 hover:text-indigo-600"
+                        aria-label="Edit child"
+                        onClick={() => startChildEdit(c)}
+                      >
+                        <PencilIcon className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 text-rose-600 hover:text-rose-700"
+                        aria-label="Delete child"
+                        onClick={() => handleDeleteChild(c.id)}
+                      >
+                        <TrashIcon className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </li>
             ))}
           </ul>
-          <form className="mt-3 space-y-2" onSubmit={e=>{e.preventDefault(); createChild({ variables: { parentId, name: childName }})}}>
-            <Label className="mb-1">New child name</Label>
-            <Input value={childName} onChange={e=>setChildName(e.target.value)} placeholder="e.g. Alex"/>
-            <Button>Add Child</Button>
-          </form>
+          {!showAddChildForm ? (
+            <Button type="button" className="mt-3" onClick={() => setShowAddChildForm(true)}>Add Child</Button>
+          ) : (
+            <form className="mt-3 space-y-2" onSubmit={e=>{e.preventDefault(); createChild({ variables: { parentId, name: childName }})}}>
+              <Label className="mb-1">New child name</Label>
+              <Input value={childName} onChange={e=>setChildName(e.target.value)} placeholder="e.g. Alex"/>
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  className="flex h-9 w-9 items-center justify-center rounded bg-emerald-600 text-white transition-colors hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                  aria-label="Confirm add child"
+                >
+                  <CheckIcon className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  className="flex h-9 w-9 items-center justify-center rounded bg-rose-600 text-white transition-colors hover:bg-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-300"
+                  aria-label="Cancel add child"
+                  onClick={() => {
+                    setChildName('')
+                    setShowAddChildForm(false)
+                  }}
+                >
+                  <XIcon className="h-4 w-4" />
+                </button>
+              </div>
+            </form>
+          )}
           </CardContent>
         </Card>
 
@@ -309,17 +451,49 @@ export default function ParentDashboard(){
             ))}
             {quests.length === 0 && <li className="text-sm text-zinc-500">No quests yet.</li>}
           </ul>
-          <form className="mt-3 space-y-2" onSubmit={e=>{e.preventDefault(); createQuest({ variables: { parentId, title: questTitle, description: questDesc || null, xp: questXP, gold: questGold }})}}>
-            <Label className="mb-1">Quest title</Label>
-            <Input value={questTitle} onChange={e=>setQuestTitle(e.target.value)} placeholder="e.g. Clean Room"/>
-            <Label className="mb-1">Description (optional)</Label>
-            <Textarea value={questDesc} onChange={e=>setQuestDesc(e.target.value)} placeholder="e.g. Tidy up and vacuum" rows={3}/>
-            <div className="flex gap-2">
-              <Input type="number" value={questXP} onChange={e=>setQuestXP(parseInt(e.target.value||'0'))} placeholder="XP"/>
-              <Input type="number" value={questGold} onChange={e=>setQuestGold(parseInt(e.target.value||'0'))} placeholder="Gold"/>
-            </div>
-            <Button>Add Quest</Button>
-          </form>
+          {!showAddQuestForm ? (
+            <Button type="button" className="mt-3" onClick={() => setShowAddQuestForm(true)}>Add Quest</Button>
+          ) : (
+            <form className="mt-3 space-y-2" onSubmit={e=>{e.preventDefault(); createQuest({ variables: { parentId, title: questTitle, description: questDesc || null, xp: questXP, gold: questGold }})}}>
+              <Label className="mb-1">Quest title</Label>
+              <Input value={questTitle} onChange={e=>setQuestTitle(e.target.value)} placeholder="e.g. Clean Room"/>
+              <Label className="mb-1">Description (optional)</Label>
+              <Textarea value={questDesc} onChange={e=>setQuestDesc(e.target.value)} placeholder="e.g. Tidy up and vacuum" rows={3}/>
+              <div className="grid gap-2 md:grid-cols-2">
+                <div>
+                  <Label className="mb-1">XP Reward</Label>
+                  <Input type="number" value={questXP} onChange={e=>setQuestXP(parseInt(e.target.value||'0'))} placeholder="e.g. 50"/>
+                </div>
+                <div>
+                  <Label className="mb-1">Gold Reward</Label>
+                  <Input type="number" value={questGold} onChange={e=>setQuestGold(parseInt(e.target.value||'0'))} placeholder="e.g. 10"/>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  className="flex h-9 w-9 items-center justify-center rounded bg-emerald-600 text-white transition-colors hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                  aria-label="Confirm add quest"
+                >
+                  <CheckIcon className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  className="flex h-9 w-9 items-center justify-center rounded bg-rose-600 text-white transition-colors hover:bg-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-300"
+                  aria-label="Cancel add quest"
+                  onClick={() => {
+                    setQuestTitle('')
+                    setQuestDesc('')
+                    setQuestXP(50)
+                    setQuestGold(10)
+                    setShowAddQuestForm(false)
+                  }}
+                >
+                  <XIcon className="h-4 w-4" />
+                </button>
+              </div>
+            </form>
+          )}
           </CardContent>
         </Card>
 
@@ -412,13 +586,37 @@ export default function ParentDashboard(){
             ))}
             {rewards.length === 0 && <li className="text-sm text-zinc-500">No rewards yet.</li>}
           </ul>
-          <form className="mt-3 space-y-2" onSubmit={e=>{e.preventDefault(); createReward({ variables: { parentId, name: rewardName, xpThreshold: rewardXP }})}}>
-            <Label className="mb-1">Reward name</Label>
-            <Input value={rewardName} onChange={e=>setRewardName(e.target.value)} placeholder="e.g. Movie Night"/>
-            <Label className="mb-1">XP threshold</Label>
-            <Input type="number" value={rewardXP} onChange={e=>setRewardXP(parseInt(e.target.value||'0'))} placeholder="XP threshold"/>
-            <Button>Add Reward</Button>
-          </form>
+          {!showAddRewardForm ? (
+            <Button type="button" className="mt-3" onClick={() => setShowAddRewardForm(true)}>Add Reward</Button>
+          ) : (
+            <form className="mt-3 space-y-2" onSubmit={e=>{e.preventDefault(); createReward({ variables: { parentId, name: rewardName, xpThreshold: rewardXP }})}}>
+              <Label className="mb-1">Reward name</Label>
+              <Input value={rewardName} onChange={e=>setRewardName(e.target.value)} placeholder="e.g. Movie Night"/>
+              <Label className="mb-1">XP threshold</Label>
+              <Input type="number" value={rewardXP} onChange={e=>setRewardXP(parseInt(e.target.value||'0'))} placeholder="XP threshold"/>
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  className="flex h-9 w-9 items-center justify-center rounded bg-emerald-600 text-white transition-colors hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                  aria-label="Confirm add reward"
+                >
+                  <CheckIcon className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  className="flex h-9 w-9 items-center justify-center rounded bg-rose-600 text-white transition-colors hover:bg-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-300"
+                  aria-label="Cancel add reward"
+                  onClick={() => {
+                    setRewardName('Movie Night')
+                    setRewardXP(200)
+                    setShowAddRewardForm(false)
+                  }}
+                >
+                  <XIcon className="h-4 w-4" />
+                </button>
+              </div>
+            </form>
+          )}
           </CardContent>
         </Card>
       </section>
