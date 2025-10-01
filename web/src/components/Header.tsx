@@ -16,9 +16,6 @@ export default function Header() {
           {auth.id && auth.role && (
             <span className="opacity-90">{auth.role} · {auth.id}</span>
           )}
-          {import.meta.env.DEV && (
-            <a href="http://localhost:8080/graphiql" className="underline/50 hover:underline" target="_blank" rel="noreferrer">GraphiQL</a>
-          )}
         </nav>
       </div>
     </header>

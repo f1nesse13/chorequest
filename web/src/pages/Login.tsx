@@ -69,7 +69,6 @@ export default function Login(){
               </CardHeader>
               <CardContent>
                 <div className="flex flex-col gap-2">
-                  <Button variant="secondary" onClick={()=>window.open('http://localhost:8080/graphiql','_blank')}>Open GraphiQL</Button>
                   <Button onClick={async ()=>{
                     setCopyMsg('')
                     try {
@@ -84,7 +83,7 @@ export default function Login(){
                   }}>Copy Bearer token</Button>
                   {copyMsg && <div className="text-xs text-zinc-600">{copyMsg}</div>}
                   <div className="text-xs text-zinc-600 mt-2">
-                    Tip: paste into GraphiQL’s Authorization field like
+                    Tip: when testing requests, add an Authorization header such as
                     <code className="ml-1 px-1 py-0.5 bg-zinc-100 rounded">Bearer &lt;token&gt;</code>
                   </div>
                 </div>
