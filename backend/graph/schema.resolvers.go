@@ -73,6 +73,14 @@ func (r *mutationResolver) DeleteReward(ctx context.Context, parentID string, re
 	return true, nil
 }
 
+// DeleteAssignment is the resolver for the deleteAssignment field.
+func (r *mutationResolver) DeleteAssignment(ctx context.Context, assignmentID string) (bool, error) {
+	if err := r.Repo.DeleteAssignment(ctx, assignmentID); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 // CompleteAssignment is the resolver for the completeAssignment field.
 func (r *mutationResolver) CompleteAssignment(ctx context.Context, assignmentID string) (*model.Assignment, error) {
 	return r.Repo.CompleteAssignment(ctx, assignmentID)

@@ -523,6 +523,37 @@ func (r *DynamoRepo) CompleteAssignment(ctx context.Context, assignmentID string
 	return &model.Assignment{ID: id, Quest: q, ChildID: it.ChildID, Status: "COMPLETED", CreatedAt: it.Created, CompletedAt: &done}, nil
 }
 
+func (r *DynamoRepo) DeleteAssignment(ctx context.Context, assignmentID string) error {
+	out, err := r.DB.Query(ctx, &dynamodb.QueryInput{
+		TableName:              aws.String(r.Table),
+		IndexName:              aws.String("GSI1"),
+		KeyConditionExpression: aws.String("GSI1SK = :sk"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":sk": &types.AttributeValueMemberS{Value: "ASSIGN#" + assignmentID},
+		},
+		Limit: aws.Int32(1),
+	})
+	if err != nil {
+		return err
+	}
+	if len(out.Items) == 0 {
+		return errors.New("assignment not found")
+	}
+	var it item
+	if err := attributevalue.UnmarshalMap(out.Items[0], &it); err != nil {
+		return err
+	}
+	_, err = r.DB.DeleteItem(ctx, &dynamodb.DeleteItemInput{
+		TableName: aws.String(r.Table),
+		Key: map[string]types.AttributeValue{
+			"PK": &types.AttributeValueMemberS{Value: it.PK},
+			"SK": &types.AttributeValueMemberS{Value: it.SK},
+		},
+		ConditionExpression: aws.String("attribute_exists(PK)"),
+	})
+	return err
+}
+
 func (r *DynamoRepo) PurchaseItem(ctx context.Context, childID, itemName string, priceGold int) (*model.Child, error) {
 	// Load child via GSI2
 	out, err := r.DB.Query(ctx, &dynamodb.QueryInput{

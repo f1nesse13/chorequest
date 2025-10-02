@@ -257,6 +257,32 @@ func (r *MemoryRepo) CompleteAssignment(_ context.Context, assignmentID string) 
 	return cloneAssignment(assignment), nil
 }
 
+func (r *MemoryRepo) DeleteAssignment(_ context.Context, assignmentID string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	assignment, ok := r.assignments[assignmentID]
+	if !ok {
+		return errors.New("assignment not found")
+	}
+	delete(r.assignments, assignmentID)
+
+	if list, ok := r.assignmentsByChild[assignment.ChildID]; ok {
+		filtered := list[:0]
+		for _, id := range list {
+			if id != assignmentID {
+				filtered = append(filtered, id)
+			}
+		}
+		if len(filtered) == 0 {
+			delete(r.assignmentsByChild, assignment.ChildID)
+		} else {
+			r.assignmentsByChild[assignment.ChildID] = filtered
+		}
+	}
+	return nil
+}
+
 func (r *MemoryRepo) CreateReward(_ context.Context, in model.NewReward) (*model.Reward, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()

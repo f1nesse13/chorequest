@@ -17,6 +17,7 @@ require (
 	github.com/graphql-go/graphql v0.8.1
 	github.com/graphql-go/handler v0.2.4
 	github.com/joho/godotenv v1.5.1
+	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/stripe/stripe-go/v76 v76.25.0
 	github.com/vektah/gqlparser/v2 v2.5.30
 )

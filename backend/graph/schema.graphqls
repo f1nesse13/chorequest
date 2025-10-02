@@ -109,6 +109,7 @@ type Mutation {
   deleteQuest(parentId: ID!, questId: ID!): Boolean!
   updateReward(parentId: ID!, rewardId: ID!, input: UpdateRewardInput!): Reward!
   deleteReward(parentId: ID!, rewardId: ID!): Boolean!
+  deleteAssignment(assignmentId: ID!): Boolean!
 
   # Children
   completeAssignment(assignmentId: ID!): Assignment!

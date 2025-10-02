@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import type { SVGProps } from 'react'
 import { gql } from '@apollo/client'
-import { useMutation, useQuery } from '@apollo/client/react'
+import { useLazyQuery, useMutation, useQuery } from '@apollo/client/react'
 import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '../store/useAuth'
 import Header from '../components/Header'
@@ -12,6 +12,7 @@ import Select from '../components/ui/Select'
 import Badge from '../components/ui/Badge'
 import Label from '../components/ui/Label'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card'
+import NotificationModal from '../components/ui/NotificationModal'
 
 const Q_CHILDREN = gql`query($parentId: ID!) { children(parentId:$parentId){ id name xp gold parentId } }`
 const Q_QUESTS = gql`query($parentId: ID!) { quests(parentId:$parentId){ id title description xp gold parentId } }`
@@ -29,6 +30,8 @@ const M_UPDATE_REWARD = gql`mutation($parentId: ID!, $rewardId: ID!, $input: Upd
 const M_DELETE_REWARD = gql`mutation($parentId: ID!, $rewardId: ID!){ deleteReward(parentId:$parentId, rewardId:$rewardId) }`
 const Q_SUB = gql`query($parentId: ID!){ subscriptionStatus(parentId:$parentId){ active currentPeriodEnd } }`
 const M_CHECKOUT = gql`mutation($parentId: ID!, $success: String!, $cancel: String!){ createCheckoutSession(parentId:$parentId, successUrl:$success, cancelUrl:$cancel) }`
+const Q_CHILD_ASSIGNMENTS = gql`query($childId: ID!){ myAssignments(childId:$childId){ id status quest{ id title } } }`
+const M_DELETE_ASSIGNMENT = gql`mutation($assignmentId: ID!){ deleteAssignment(assignmentId:$assignmentId) }`
 
 function PencilIcon(props: SVGProps<SVGSVGElement>) {
   return (
@@ -100,9 +103,24 @@ function XIcon(props: SVGProps<SVGSVGElement>) {
   )
 }
 
+type NotificationState = {
+  title: string
+  description: string
+  confirmLabel?: string
+  onConfirm?: () => Promise<void> | void
+}
+
+type AssignmentSummary = {
+  id: string
+  questId: string
+  questTitle: string
+  status: string
+}
+
 export default function ParentDashboard(){
   const { parentId = 'parent-1' } = useParams()
   const auth = useAuth()
+  const [fetchChildAssignments] = useLazyQuery(Q_CHILD_ASSIGNMENTS, { fetchPolicy: 'network-only' })
   const [childName, setChildName] = useState('')
   const [editingChildId, setEditingChildId] = useState<string | null>(null)
   const [childEditName, setChildEditName] = useState('')
@@ -121,6 +139,10 @@ export default function ParentDashboard(){
   const [showAddChildForm, setShowAddChildForm] = useState(false)
   const [showAddQuestForm, setShowAddQuestForm] = useState(false)
   const [showAddRewardForm, setShowAddRewardForm] = useState(false)
+  const [notification, setNotification] = useState<NotificationState | null>(null)
+  const assignmentsCache = useRef<Record<string, { quests: Set<string>; items: AssignmentSummary[] }>>({})
+  const [activeAssignmentsChildId, setActiveAssignmentsChildId] = useState<string | null>(null)
+  const [activeAssignments, setActiveAssignments] = useState<AssignmentSummary[]>([])
 
   const { data: dc, refetch: refetchChildren } = useQuery(Q_CHILDREN, { variables: { parentId } })
   const { data: dq, refetch: refetchQuests } = useQuery(Q_QUESTS, { variables: { parentId } })
@@ -138,11 +160,158 @@ export default function ParentDashboard(){
   const [updateReward] = useMutation(M_UPDATE_REWARD, { onCompleted: () => { setEditingRewardId(null); setRewardEditDraft({ name: '', xpThreshold: 0 }); refetchRewards() } })
   const [deleteRewardMutation] = useMutation(M_DELETE_REWARD, { onCompleted: () => { refetchRewards() } })
   const [checkout] = useMutation(M_CHECKOUT)
+  const [deleteAssignmentMutation] = useMutation(M_DELETE_ASSIGNMENT)
 
   const children = useMemo(() => (dc as any)?.children ?? [], [dc])
   const quests = useMemo(() => (dq as any)?.quests ?? [], [dq])
   const rewards = useMemo(() => (dr as any)?.rewards ?? [], [dr])
   const sub = (ds as any)?.subscriptionStatus
+
+  const pendingResetRef = useRef<(() => void) | null>(null)
+
+  const hideNotification = () => {
+    if (pendingResetRef.current) {
+      pendingResetRef.current()
+      pendingResetRef.current = null
+    }
+    setNotification(null)
+  }
+
+  const loadAssignmentsForChild = async (childId: string) => {
+    const cached = assignmentsCache.current[childId]
+    if (cached) return cached
+    const res = await fetchChildAssignments({ variables: { childId } })
+    const list = (res.data as any)?.myAssignments ?? []
+    const items: AssignmentSummary[] = []
+    const quests = new Set<string>()
+    list.forEach((item: any) => {
+      const questId = item?.quest?.id
+      if (questId) {
+        quests.add(questId)
+      }
+      items.push({
+        id: item?.id ?? '',
+        questId: questId ?? '',
+        questTitle: item?.quest?.title ?? 'Unknown quest',
+        status: item?.status ?? 'ASSIGNED',
+      })
+    })
+    const entry = { quests, items }
+    assignmentsCache.current[childId] = entry
+    return entry
+  }
+
+  const handleRequestAssign = async (quest: any, childId: string, childName: string, resetSelect: () => void) => {
+    if (!childId) return
+    try {
+      const assignmentsEntry = await loadAssignmentsForChild(childId)
+      if (assignmentsEntry.quests.has(quest.id)) {
+        pendingResetRef.current = null
+        setNotification({
+          title: 'Already assigned',
+          description: `${childName} already has "${quest.title}" assigned.`,
+        })
+        resetSelect()
+        return
+      }
+      pendingResetRef.current = resetSelect
+      setNotification({
+        title: 'Assign quest?',
+        description: `Assign "${quest.title}" to ${childName}?`,
+        confirmLabel: 'Assign quest',
+        onConfirm: async () => {
+          try {
+            const result = await assignQuest({ variables: { questId: quest.id, childId } })
+            const payload = (result.data as any)?.assignQuest
+            const cacheEntry = assignmentsCache.current[childId] ?? { quests: new Set<string>(), items: [] as AssignmentSummary[] }
+            cacheEntry.quests.add(quest.id)
+            const summary: AssignmentSummary = {
+              id: payload?.id ?? `assignment-${Date.now()}`,
+              questId: quest.id,
+              questTitle: quest.title ?? 'Quest',
+              status: payload?.status ?? 'ASSIGNED',
+            }
+            cacheEntry.items = [summary, ...cacheEntry.items.filter(item => item.id !== summary.id)]
+            assignmentsCache.current[childId] = cacheEntry
+            if (activeAssignmentsChildId === childId) {
+              setActiveAssignments([...cacheEntry.items])
+            }
+            resetSelect()
+            pendingResetRef.current = null
+            hideNotification()
+          } catch (err: any) {
+            resetSelect()
+            pendingResetRef.current = null
+            const message = typeof err?.message === 'string' ? err.message : 'Failed to assign quest.'
+            setNotification({
+              title: 'Assignment failed',
+              description: message,
+            })
+          }
+        },
+      })
+    } catch (err: any) {
+      pendingResetRef.current = null
+      const message = typeof err?.message === 'string' ? err.message : 'Unable to check assignments.'
+      setNotification({
+        title: 'Unable to assign quest',
+        description: message,
+      })
+      resetSelect()
+    }
+  }
+
+  const toggleAssignmentsForChild = async (child: any) => {
+    if (!child?.id) return
+    if (activeAssignmentsChildId === child.id) {
+      setActiveAssignmentsChildId(null)
+      setActiveAssignments([])
+      return
+    }
+    try {
+      const data = await loadAssignmentsForChild(child.id)
+      setActiveAssignmentsChildId(child.id)
+      setActiveAssignments([...data.items])
+    } catch (err: any) {
+      const message = typeof err?.message === 'string' ? err.message : 'Unable to load assignments.'
+      setNotification({
+        title: 'Unable to load assignments',
+        description: message,
+      })
+    }
+  }
+
+  const requestRemoveAssignment = (childId: string, childName: string, assignment: AssignmentSummary) => {
+    pendingResetRef.current = null
+    setNotification({
+      title: 'Remove assignment?',
+      description: `Remove "${assignment.questTitle}" from ${childName}?`,
+      confirmLabel: 'Remove',
+      onConfirm: async () => {
+        try {
+          await deleteAssignmentMutation({ variables: { assignmentId: assignment.id } })
+          const cacheEntry = assignmentsCache.current[childId]
+          if (cacheEntry) {
+            if (assignment.questId) {
+              cacheEntry.quests.delete(assignment.questId)
+            }
+            cacheEntry.items = cacheEntry.items.filter(item => item.id !== assignment.id)
+            assignmentsCache.current[childId] = cacheEntry
+            if (activeAssignmentsChildId === childId) {
+              setActiveAssignments([...cacheEntry.items])
+            }
+          }
+          hideNotification()
+        } catch (err: any) {
+          const message = typeof err?.message === 'string' ? err.message : 'Failed to remove assignment.'
+          setNotification({
+            title: 'Remove assignment failed',
+            description: message,
+          })
+        }
+      },
+    })
+  }
 
   const startChildEdit = (child: any) => {
     setEditingChildId(child.id)
@@ -155,13 +324,34 @@ export default function ParentDashboard(){
     setChildEditName('')
   }
 
-  const handleDeleteChild = async (childId: string) => {
-    if (!childId) return
-    if (typeof window !== 'undefined' && !window.confirm('Delete this child? This removes their assignments.')) return
-    if (editingChildId === childId) {
-      cancelChildEdit()
-    }
-    await deleteChildMutation({ variables: { parentId, childId } })
+  const requestDeleteChild = (child: any) => {
+    if (!child?.id) return
+    pendingResetRef.current = null
+    setNotification({
+      title: 'Delete child?',
+      description: `Delete ${child.name ?? 'this child'}? This will remove their quests and assignments.`,
+      confirmLabel: 'Delete child',
+      onConfirm: async () => {
+        try {
+          if (editingChildId === child.id) {
+            cancelChildEdit()
+          }
+          await deleteChildMutation({ variables: { parentId, childId: child.id } })
+          delete assignmentsCache.current[child.id]
+          if (activeAssignmentsChildId === child.id) {
+            setActiveAssignmentsChildId(null)
+            setActiveAssignments([])
+          }
+          hideNotification()
+        } catch (err: any) {
+          const message = typeof err?.message === 'string' ? err.message : 'Failed to delete child.'
+          setNotification({
+            title: 'Delete child failed',
+            description: message,
+          })
+        }
+      },
+    })
   }
 
   const startQuestEdit = (quest: any) => {
@@ -293,13 +483,50 @@ export default function ParentDashboard(){
                         type="button"
                         variant="ghost"
                         size="sm"
+                        className="h-8 px-2 text-zinc-600 hover:text-indigo-600"
+                        onClick={() => void toggleAssignmentsForChild(c)}
+                      >
+                        {activeAssignmentsChildId === c.id ? 'Hide assignments' : 'Manage assignments'}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
                         className="h-8 w-8 p-0 text-rose-600 hover:text-rose-700"
                         aria-label="Delete child"
-                        onClick={() => handleDeleteChild(c.id)}
+                        onClick={() => requestDeleteChild(c)}
                       >
                         <TrashIcon className="h-4 w-4" />
                       </Button>
                     </div>
+                  </div>
+                )}
+                {activeAssignmentsChildId === c.id && (
+                  <div className="mt-3 space-y-2 rounded border border-zinc-200 bg-zinc-50 p-3">
+                    <div className="text-xs font-medium uppercase tracking-wide text-zinc-600">Assignments</div>
+                    {activeAssignments.length === 0 ? (
+                      <div className="text-xs text-zinc-500">No quests assigned.</div>
+                    ) : (
+                      <ul className="space-y-2">
+                        {activeAssignments.map((assignment) => (
+                          <li key={assignment.id} className="flex items-center justify-between gap-3">
+                            <div>
+                              <div className="text-sm font-medium text-zinc-800">{assignment.questTitle}</div>
+                              <div className="text-xs uppercase tracking-wide text-zinc-500">{assignment.status}</div>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="text-rose-600 hover:text-rose-700"
+                              onClick={() => requestRemoveAssignment(c.id, c.name, assignment)}
+                            >
+                              Remove
+                            </Button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
                 )}
               </li>
@@ -354,13 +581,15 @@ export default function ParentDashboard(){
                     <Select
                       defaultValue=""
                       className="md:w-40"
-                      onChange={async e => {
-                        const target = e.target
-                        const childId = target.value
-                        if (childId) {
-                          await assignQuest({ variables: { questId: q.id, childId } })
-                          target.selectedIndex = 0
-                        }
+                      onChange={e => {
+                        const selectEl = e.target as HTMLSelectElement
+                        const childId = selectEl.value
+                        if (!childId) return
+                        const child = children.find((c: any) => c.id === childId)
+                        const childName = child?.name ?? 'this child'
+                        void handleRequestAssign(q, childId, childName, () => {
+                          selectEl.selectedIndex = 0
+                        })
                       }}
                     >
                       <option value="">Assign to…</option>
@@ -621,6 +850,14 @@ export default function ParentDashboard(){
         </Card>
       </section>
       </div>
+      <NotificationModal
+        open={!!notification}
+        title={notification?.title ?? ''}
+        description={notification?.description ?? ''}
+        confirmLabel={notification?.confirmLabel}
+        onConfirm={notification?.onConfirm}
+        onClose={hideNotification}
+      />
     </div>
   )
 }
