@@ -12,13 +12,15 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/joho/godotenv"
 
 	"chorequest/backend/graph"
 	appauth "chorequest/backend/internal/auth"
 	"chorequest/backend/internal/db"
+
 	repopkg "chorequest/backend/internal/repo"
-	"github.com/golang-jwt/jwt/v5"
-	"github.com/joho/godotenv"
+	sqlitedb "chorequest/backend/internal/sqlite"
 )
 
 func main() {
@@ -74,21 +76,45 @@ func main() {
 		_, _ = w.Write([]byte("{\"token\":\"" + s + "\"}"))
 	})
 
-	// Dependencies
-	dbClient, err := db.New(context.Background())
-	if err != nil {
-		log.Printf("dynamo client error (non-fatal): %v", err)
-	}
 	var appRepo repopkg.Repo
-	if dbClient != nil {
-		appRepo = repopkg.NewDynamoRepo(dbClient.Dynamo, os.Getenv("DYNAMO_TABLE_NAME"))
-		log.Printf("using DynamoDB repository %s", os.Getenv("DYNAMO_TABLE_NAME"))
+	var closeFuncs []func()
+	if sqlitePath := os.Getenv("SQLITE_PATH"); sqlitePath != "" {
+		sqliteDB, err := sqlitedb.Open(context.Background(), sqlitePath)
+		if err != nil {
+			log.Fatalf("sqlite open error: %v", err)
+		}
+		closeFuncs = append(closeFuncs, func() { _ = sqliteDB.Close() })
+		appRepo = repopkg.NewSQLiteRepo(sqliteDB)
+		log.Printf("using SQLite repository at %s", sqlitePath)
+	} else {
+		dbClient, err := db.New(context.Background())
+		if err != nil {
+			log.Printf("dynamo client error (non-fatal): %v", err)
+		}
+		if dbClient != nil {
+			appRepo = repopkg.NewDynamoRepo(dbClient.Dynamo, os.Getenv("DYNAMO_TABLE_NAME"))
+			log.Printf("using DynamoDB repository %s", os.Getenv("DYNAMO_TABLE_NAME"))
+			if os.Getenv("DYNAMO_AUTO_MIGRATE") == "1" {
+				if err := db.EnsureSingleTable(context.Background(), dbClient, os.Getenv("DYNAMO_TABLE_NAME")); err != nil {
+					log.Printf("dynamo ensure table error: %v", err)
+				} else {
+					log.Printf("dynamo ensure table ok")
+				}
+			}
+		}
 	}
 	if appRepo == nil {
 		log.Printf("falling back to in-memory repository")
 		mem := repopkg.NewMemoryRepo()
 		mem.SeedDemoData()
 		appRepo = mem
+	}
+	if len(closeFuncs) > 0 {
+		defer func() {
+			for _, fn := range closeFuncs {
+				fn()
+			}
+		}()
 	}
 
 	// GraphQL endpoint (gqlgen)
@@ -113,17 +139,6 @@ func main() {
 			_, _ = w.Write([]byte("{\"sub\": \"" + sub + "\"}"))
 		})
 	})
-
-	// Optional: ensure Dynamo table(s) when requested
-	if os.Getenv("DYNAMO_AUTO_MIGRATE") == "1" {
-		if dbClient != nil {
-			if err := db.EnsureSingleTable(context.Background(), dbClient, os.Getenv("DYNAMO_TABLE_NAME")); err != nil {
-				log.Printf("dynamo ensure table error: %v", err)
-			} else {
-				log.Printf("dynamo ensure table ok")
-			}
-		}
-	}
 
 	addr := ":8080"
 	if v := os.Getenv("PORT"); v != "" {

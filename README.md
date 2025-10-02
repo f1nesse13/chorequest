@@ -8,11 +8,17 @@ Getting Started
 1) Backend
    - Env (optional):
      - `JWT_SECRET`: HMAC secret for parsing Bearer tokens
+     - `SQLITE_PATH`: path to a local SQLite database (`./data/dev.sqlite` for local dev)
      - `AWS_REGION`: AWS region (default `us-east-1`)
-     - `DYNAMODB_ENDPOINT`: e.g. `http://localhost:8000` for local DynamoDB
-   - Launch local DynamoDB: `make dynamodb-up` (exposes `http://localhost:8000`)
-   - Run: `DYNAMO_AUTO_MIGRATE=1 DYNAMODB_ENDPOINT=http://localhost:8000 make dev-backend` (GraphQL at `http://localhost:8080/query`)
-   - Seed: `DYNAMODB_ENDPOINT=http://localhost:8000 make seed` (env `SEED_PARENT_ID` optional)
+     - `DYNAMODB_ENDPOINT`: e.g. `http://localhost:8000` for local DynamoDB (only needed when migrating from Dynamo)
+   - Local SQLite quick start:
+     1. `export SQLITE_PATH=./data/dev.sqlite`
+     2. `go run ./cmd/migrate --sqlite $SQLITE_PATH` (optional: copies existing Dynamo data when Dynamo env vars are set)
+     3. `make dev-backend`
+   - DynamoDB path (legacy):
+     - Launch local DynamoDB: `make dynamodb-up` (exposes `http://localhost:8000`)
+     - Run: `DYNAMO_AUTO_MIGRATE=1 DYNAMODB_ENDPOINT=http://localhost:8000 make dev-backend`
+     - Seed: `DYNAMODB_ENDPOINT=http://localhost:8000 make seed` (env `SEED_PARENT_ID` optional)
    - Health: `GET http://localhost:8080/healthz`
 
 2) Frontend

@@ -1,5 +1,7 @@
 SHELL := /bin/bash
 
+SQLITE_PATH ?= ./data/dev.sqlite
+
 .PHONY: dev dev-backend build-backend dev-web gen codegen bootstrap ensure-env ensure-docker-env
 
 # Run the backend server in development mode
@@ -35,7 +37,7 @@ bootstrap:
 	cd web && npm install
 	cd backend && go mod tidy
 
-.PHONY: dynamodb-up dynamodb-down dynamodb-logs seed
+.PHONY: dynamodb-up dynamodb-down dynamodb-logs seed sqlite-db sqlite-migrate dev-backend-sqlite
 
 # Start the local DynamoDB container
 dynamodb-up:
@@ -52,6 +54,18 @@ dynamodb-logs:
 # Seed the DynamoDB instance with starter data
 seed:
 	cd backend && DYNAMO_AUTO_MIGRATE=1 DYNAMODB_ENDPOINT=${DYNAMODB_ENDPOINT} go run ./cmd/seed
+
+# Ensure the SQLite data directory / file exists
+sqlite-db:
+	cd backend && mkdir -p $(dir $(SQLITE_PATH)) && touch $(SQLITE_PATH)
+
+# Run the Dynamo -> SQLite migration (requires Dynamo env vars)
+sqlite-migrate: sqlite-db
+	cd backend && SQLITE_PATH=$(SQLITE_PATH) go run ./cmd/migrate --sqlite $(SQLITE_PATH)
+
+# Convenience target to run backend with SQLite enabled
+dev-backend-sqlite: sqlite-db
+	cd backend && SQLITE_PATH=$(SQLITE_PATH) go run ./cmd/server
 
 .PHONY: stack-up stack-down stack-logs
 

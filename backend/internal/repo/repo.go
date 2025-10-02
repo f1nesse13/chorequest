@@ -23,6 +23,7 @@ type Repo interface {
 	AssignQuest(ctx context.Context, questID, childID string) (*model.Assignment, error)
 	ListAssignmentsForChild(ctx context.Context, childID string) ([]*model.Assignment, error)
 	CompleteAssignment(ctx context.Context, assignmentID string) (*model.Assignment, error)
+	DeleteAssignment(ctx context.Context, assignmentID string) error
 
 	CreateReward(ctx context.Context, in model.NewReward) (*model.Reward, error)
 	ListRewards(ctx context.Context, parentID string) ([]*model.Reward, error)

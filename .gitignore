@@ -31,6 +31,7 @@ Thumbs.db
 
 ### Go backend build artifacts
 backend/bin/
+backend/data/
 *.exe
 *.test
 *.out
