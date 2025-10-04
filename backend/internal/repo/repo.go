@@ -7,28 +7,35 @@ import (
 	"chorequest/backend/graph/model"
 )
 
-// Repo defines operations for the domain backed by DynamoDB.
+// Repo defines persistence operations for the domain.
 type Repo interface {
 	CreateChild(ctx context.Context, in model.NewChild) (*model.Child, error)
-	ListChildren(ctx context.Context, parentID string) ([]*model.Child, error)
-	UpdateChild(ctx context.Context, parentID, childID string, in model.UpdateChildInput) (*model.Child, error)
-	DeleteChild(ctx context.Context, parentID, childID string) error
+	ListChildren(ctx context.Context, familyID string) ([]*model.Child, error)
+	GetChild(ctx context.Context, childID string) (*model.Child, error)
+	UpdateChild(ctx context.Context, familyID, childID string, in model.UpdateChildInput) (*model.Child, error)
+	DeleteChild(ctx context.Context, familyID, childID string) error
 
 	CreateQuest(ctx context.Context, in model.NewQuest) (*model.Quest, error)
-	ListQuests(ctx context.Context, parentID string) ([]*model.Quest, error)
+	ListQuests(ctx context.Context, familyID string) ([]*model.Quest, error)
 	GetQuestByID(ctx context.Context, questID string) (*model.Quest, error)
-	UpdateQuest(ctx context.Context, parentID, questID string, in model.UpdateQuestInput) (*model.Quest, error)
-	DeleteQuest(ctx context.Context, parentID, questID string) error
+	UpdateQuest(ctx context.Context, familyID, questID string, in model.UpdateQuestInput) (*model.Quest, error)
+	DeleteQuest(ctx context.Context, familyID, questID string) error
 
-	AssignQuest(ctx context.Context, questID, childID string) (*model.Assignment, error)
+	AssignQuest(ctx context.Context, familyID, questID, childID string) (*model.Assignment, error)
 	ListAssignmentsForChild(ctx context.Context, childID string) ([]*model.Assignment, error)
 	CompleteAssignment(ctx context.Context, assignmentID string) (*model.Assignment, error)
 	DeleteAssignment(ctx context.Context, assignmentID string) error
 
 	CreateReward(ctx context.Context, in model.NewReward) (*model.Reward, error)
-	ListRewards(ctx context.Context, parentID string) ([]*model.Reward, error)
-	UpdateReward(ctx context.Context, parentID, rewardID string, in model.UpdateRewardInput) (*model.Reward, error)
-	DeleteReward(ctx context.Context, parentID, rewardID string) error
+	ListRewards(ctx context.Context, familyID string) ([]*model.Reward, error)
+	UpdateReward(ctx context.Context, familyID, rewardID string, in model.UpdateRewardInput) (*model.Reward, error)
+	DeleteReward(ctx context.Context, familyID, rewardID string) error
+
+	CreateFamily(ctx context.Context, in model.NewFamily) (*model.Family, error)
+	GetFamily(ctx context.Context, familyID string) (*model.Family, error)
+	ListFamiliesForOwner(ctx context.Context, ownerID string) ([]*model.Family, error)
+	RenameFamily(ctx context.Context, familyID, name string) (*model.Family, error)
+	DeleteFamily(ctx context.Context, familyID string) error
 
 	PurchaseItem(ctx context.Context, childID, itemName string, priceGold int) (*model.Child, error)
 }

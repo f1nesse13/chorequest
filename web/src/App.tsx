@@ -9,7 +9,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/parent/:parentId" element={<ParentDashboard />} />
+        <Route path="/family/:familyId" element={<ParentDashboard />} />
         <Route path="/child/:childId" element={<ChildView />} />
       </Routes>
     </BrowserRouter>

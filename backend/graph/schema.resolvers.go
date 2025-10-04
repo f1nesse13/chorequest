@@ -20,13 +20,13 @@ func (r *mutationResolver) CreateChild(ctx context.Context, input model.NewChild
 }
 
 // UpdateChild is the resolver for the updateChild field.
-func (r *mutationResolver) UpdateChild(ctx context.Context, parentID string, childID string, input model.UpdateChildInput) (*model.Child, error) {
-	return r.Repo.UpdateChild(ctx, parentID, childID, input)
+func (r *mutationResolver) UpdateChild(ctx context.Context, familyID string, childID string, input model.UpdateChildInput) (*model.Child, error) {
+	return r.Repo.UpdateChild(ctx, familyID, childID, input)
 }
 
 // DeleteChild is the resolver for the deleteChild field.
-func (r *mutationResolver) DeleteChild(ctx context.Context, parentID string, childID string) (bool, error) {
-	if err := r.Repo.DeleteChild(ctx, parentID, childID); err != nil {
+func (r *mutationResolver) DeleteChild(ctx context.Context, familyID string, childID string) (bool, error) {
+	if err := r.Repo.DeleteChild(ctx, familyID, childID); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -38,8 +38,8 @@ func (r *mutationResolver) CreateQuest(ctx context.Context, input model.NewQuest
 }
 
 // AssignQuest is the resolver for the assignQuest field.
-func (r *mutationResolver) AssignQuest(ctx context.Context, questID string, childID string) (*model.Assignment, error) {
-	return r.Repo.AssignQuest(ctx, questID, childID)
+func (r *mutationResolver) AssignQuest(ctx context.Context, familyID string, questID string, childID string) (*model.Assignment, error) {
+	return r.Repo.AssignQuest(ctx, familyID, questID, childID)
 }
 
 // CreateReward is the resolver for the createReward field.
@@ -48,26 +48,34 @@ func (r *mutationResolver) CreateReward(ctx context.Context, input model.NewRewa
 }
 
 // UpdateQuest is the resolver for the updateQuest field.
-func (r *mutationResolver) UpdateQuest(ctx context.Context, parentID string, questID string, input model.UpdateQuestInput) (*model.Quest, error) {
-	return r.Repo.UpdateQuest(ctx, parentID, questID, input)
+func (r *mutationResolver) UpdateQuest(ctx context.Context, familyID string, questID string, input model.UpdateQuestInput) (*model.Quest, error) {
+	return r.Repo.UpdateQuest(ctx, familyID, questID, input)
 }
 
 // DeleteQuest is the resolver for the deleteQuest field.
-func (r *mutationResolver) DeleteQuest(ctx context.Context, parentID string, questID string) (bool, error) {
-	if err := r.Repo.DeleteQuest(ctx, parentID, questID); err != nil {
+func (r *mutationResolver) DeleteQuest(ctx context.Context, familyID string, questID string) (bool, error) {
+	if err := r.Repo.DeleteQuest(ctx, familyID, questID); err != nil {
 		return false, err
 	}
 	return true, nil
 }
 
 // UpdateReward is the resolver for the updateReward field.
-func (r *mutationResolver) UpdateReward(ctx context.Context, parentID string, rewardID string, input model.UpdateRewardInput) (*model.Reward, error) {
-	return r.Repo.UpdateReward(ctx, parentID, rewardID, input)
+func (r *mutationResolver) UpdateReward(ctx context.Context, familyID string, rewardID string, input model.UpdateRewardInput) (*model.Reward, error) {
+	return r.Repo.UpdateReward(ctx, familyID, rewardID, input)
 }
 
 // DeleteReward is the resolver for the deleteReward field.
-func (r *mutationResolver) DeleteReward(ctx context.Context, parentID string, rewardID string) (bool, error) {
-	if err := r.Repo.DeleteReward(ctx, parentID, rewardID); err != nil {
+func (r *mutationResolver) DeleteReward(ctx context.Context, familyID string, rewardID string) (bool, error) {
+	if err := r.Repo.DeleteReward(ctx, familyID, rewardID); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// DeleteFamily is the resolver for the deleteFamily field.
+func (r *mutationResolver) DeleteFamily(ctx context.Context, familyID string) (bool, error) {
+	if err := r.Repo.DeleteFamily(ctx, familyID); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -81,6 +89,16 @@ func (r *mutationResolver) DeleteAssignment(ctx context.Context, assignmentID st
 	return true, nil
 }
 
+// CreateFamily is the resolver for the createFamily field.
+func (r *mutationResolver) CreateFamily(ctx context.Context, input model.NewFamily) (*model.Family, error) {
+	return r.Repo.CreateFamily(ctx, input)
+}
+
+// RenameFamily is the resolver for the renameFamily field.
+func (r *mutationResolver) RenameFamily(ctx context.Context, familyID string, name string) (*model.Family, error) {
+	return r.Repo.RenameFamily(ctx, familyID, name)
+}
+
 // CompleteAssignment is the resolver for the completeAssignment field.
 func (r *mutationResolver) CompleteAssignment(ctx context.Context, assignmentID string) (*model.Assignment, error) {
 	return r.Repo.CompleteAssignment(ctx, assignmentID)
@@ -92,7 +110,7 @@ func (r *mutationResolver) PurchaseItem(ctx context.Context, childID string, ite
 }
 
 // CreateCheckoutSession is the resolver for the createCheckoutSession field.
-func (r *mutationResolver) CreateCheckoutSession(ctx context.Context, parentID string, successURL string, cancelURL string) (string, error) {
+func (r *mutationResolver) CreateCheckoutSession(ctx context.Context, familyID string, successURL string, cancelURL string) (string, error) {
 	secret := os.Getenv("STRIPE_SECRET")
 	price := os.Getenv("STRIPE_PRICE_ID")
 	if secret == "" || price == "" {
@@ -107,7 +125,7 @@ func (r *mutationResolver) CreateCheckoutSession(ctx context.Context, parentID s
 			Price:    stripe.String(price),
 			Quantity: stripe.Int64(1),
 		}},
-		ClientReferenceID: stripe.String(parentID),
+		ClientReferenceID: stripe.String(familyID),
 	}
 	sess, err := session.New(params)
 	if err != nil {
@@ -122,18 +140,28 @@ func (r *queryResolver) Health(ctx context.Context) (string, error) {
 }
 
 // Children is the resolver for the children field.
-func (r *queryResolver) Children(ctx context.Context, parentID string) ([]*model.Child, error) {
-	return r.Repo.ListChildren(ctx, parentID)
+func (r *queryResolver) Children(ctx context.Context, familyID string) ([]*model.Child, error) {
+	return r.Repo.ListChildren(ctx, familyID)
 }
 
 // Quests is the resolver for the quests field.
-func (r *queryResolver) Quests(ctx context.Context, parentID string) ([]*model.Quest, error) {
-	return r.Repo.ListQuests(ctx, parentID)
+func (r *queryResolver) Quests(ctx context.Context, familyID string) ([]*model.Quest, error) {
+	return r.Repo.ListQuests(ctx, familyID)
 }
 
 // Rewards is the resolver for the rewards field.
-func (r *queryResolver) Rewards(ctx context.Context, parentID string) ([]*model.Reward, error) {
-	return r.Repo.ListRewards(ctx, parentID)
+func (r *queryResolver) Rewards(ctx context.Context, familyID string) ([]*model.Reward, error) {
+	return r.Repo.ListRewards(ctx, familyID)
+}
+
+// Family is the resolver for the family field.
+func (r *queryResolver) Family(ctx context.Context, id string) (*model.Family, error) {
+	return r.Repo.GetFamily(ctx, id)
+}
+
+// Families is the resolver for the families field.
+func (r *queryResolver) Families(ctx context.Context, ownerID string) ([]*model.Family, error) {
+	return r.Repo.ListFamiliesForOwner(ctx, ownerID)
 }
 
 // MyAssignments is the resolver for the myAssignments field.
@@ -142,7 +170,7 @@ func (r *queryResolver) MyAssignments(ctx context.Context, childID string) ([]*m
 }
 
 // SubscriptionStatus is the resolver for the subscriptionStatus field.
-func (r *queryResolver) SubscriptionStatus(ctx context.Context, parentID string) (*model.SubscriptionStatus, error) {
+func (r *queryResolver) SubscriptionStatus(ctx context.Context, familyID string) (*model.SubscriptionStatus, error) {
 	// Placeholder: implement with Stripe customer/subscription lookup later
 	return &model.SubscriptionStatus{Active: false, CurrentPeriodEnd: nil}, nil
 }

@@ -26,22 +26,34 @@ type AvatarItem struct {
 
 type Child struct {
 	ID       string `json:"id"`
-	ParentID string `json:"parentId"`
+	FamilyID string `json:"familyId"`
 	Name     string `json:"name"`
 	Xp       int    `json:"xp"`
 	Gold     int    `json:"gold"`
+}
+
+type Family struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	OwnerID   string `json:"ownerId"`
+	CreatedAt string `json:"createdAt"`
 }
 
 type Mutation struct {
 }
 
 type NewChild struct {
-	ParentID string `json:"parentId"`
+	FamilyID string `json:"familyId"`
 	Name     string `json:"name"`
 }
 
+type NewFamily struct {
+	OwnerID string `json:"ownerId"`
+	Name    string `json:"name"`
+}
+
 type NewQuest struct {
-	ParentID    string  `json:"parentId"`
+	FamilyID    string  `json:"familyId"`
 	Title       string  `json:"title"`
 	Description *string `json:"description,omitempty"`
 	Xp          int     `json:"xp"`
@@ -49,7 +61,7 @@ type NewQuest struct {
 }
 
 type NewReward struct {
-	ParentID    string `json:"parentId"`
+	FamilyID    string `json:"familyId"`
 	Name        string `json:"name"`
 	XpThreshold int    `json:"xpThreshold"`
 }
@@ -59,7 +71,7 @@ type Query struct {
 
 type Quest struct {
 	ID          string  `json:"id"`
-	ParentID    string  `json:"parentId"`
+	FamilyID    string  `json:"familyId"`
 	Title       string  `json:"title"`
 	Description *string `json:"description,omitempty"`
 	Xp          int     `json:"xp"`
@@ -68,7 +80,7 @@ type Quest struct {
 
 type Reward struct {
 	ID          string `json:"id"`
-	ParentID    string `json:"parentId"`
+	FamilyID    string `json:"familyId"`
 	Name        string `json:"name"`
 	XpThreshold int    `json:"xpThreshold"`
 }

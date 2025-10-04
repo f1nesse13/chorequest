@@ -63,52 +63,64 @@ type ComplexityRoot struct {
 	}
 
 	Child struct {
+		FamilyID func(childComplexity int) int
 		Gold     func(childComplexity int) int
 		ID       func(childComplexity int) int
 		Name     func(childComplexity int) int
-		ParentID func(childComplexity int) int
 		Xp       func(childComplexity int) int
 	}
 
+	Family struct {
+		CreatedAt func(childComplexity int) int
+		ID        func(childComplexity int) int
+		Name      func(childComplexity int) int
+		OwnerID   func(childComplexity int) int
+	}
+
 	Mutation struct {
-		AssignQuest           func(childComplexity int, questID string, childID string) int
+		AssignQuest           func(childComplexity int, familyID string, questID string, childID string) int
 		CompleteAssignment    func(childComplexity int, assignmentID string) int
-		CreateCheckoutSession func(childComplexity int, parentID string, successURL string, cancelURL string) int
+		CreateCheckoutSession func(childComplexity int, familyID string, successURL string, cancelURL string) int
 		CreateChild           func(childComplexity int, input model.NewChild) int
+		CreateFamily          func(childComplexity int, input model.NewFamily) int
 		CreateQuest           func(childComplexity int, input model.NewQuest) int
 		CreateReward          func(childComplexity int, input model.NewReward) int
 		DeleteAssignment      func(childComplexity int, assignmentID string) int
-		DeleteChild           func(childComplexity int, parentID string, childID string) int
-		DeleteQuest           func(childComplexity int, parentID string, questID string) int
-		DeleteReward          func(childComplexity int, parentID string, rewardID string) int
+		DeleteChild           func(childComplexity int, familyID string, childID string) int
+		DeleteFamily          func(childComplexity int, familyID string) int
+		DeleteQuest           func(childComplexity int, familyID string, questID string) int
+		DeleteReward          func(childComplexity int, familyID string, rewardID string) int
 		PurchaseItem          func(childComplexity int, childID string, itemName string, priceGold int) int
-		UpdateChild           func(childComplexity int, parentID string, childID string, input model.UpdateChildInput) int
-		UpdateQuest           func(childComplexity int, parentID string, questID string, input model.UpdateQuestInput) int
-		UpdateReward          func(childComplexity int, parentID string, rewardID string, input model.UpdateRewardInput) int
+		RenameFamily          func(childComplexity int, familyID string, name string) int
+		UpdateChild           func(childComplexity int, familyID string, childID string, input model.UpdateChildInput) int
+		UpdateQuest           func(childComplexity int, familyID string, questID string, input model.UpdateQuestInput) int
+		UpdateReward          func(childComplexity int, familyID string, rewardID string, input model.UpdateRewardInput) int
 	}
 
 	Query struct {
-		Children           func(childComplexity int, parentID string) int
+		Children           func(childComplexity int, familyID string) int
+		Families           func(childComplexity int, ownerID string) int
+		Family             func(childComplexity int, id string) int
 		Health             func(childComplexity int) int
 		MyAssignments      func(childComplexity int, childID string) int
-		Quests             func(childComplexity int, parentID string) int
-		Rewards            func(childComplexity int, parentID string) int
-		SubscriptionStatus func(childComplexity int, parentID string) int
+		Quests             func(childComplexity int, familyID string) int
+		Rewards            func(childComplexity int, familyID string) int
+		SubscriptionStatus func(childComplexity int, familyID string) int
 	}
 
 	Quest struct {
 		Description func(childComplexity int) int
+		FamilyID    func(childComplexity int) int
 		Gold        func(childComplexity int) int
 		ID          func(childComplexity int) int
-		ParentID    func(childComplexity int) int
 		Title       func(childComplexity int) int
 		Xp          func(childComplexity int) int
 	}
 
 	Reward struct {
+		FamilyID    func(childComplexity int) int
 		ID          func(childComplexity int) int
 		Name        func(childComplexity int) int
-		ParentID    func(childComplexity int) int
 		XpThreshold func(childComplexity int) int
 	}
 
@@ -126,27 +138,32 @@ type ComplexityRoot struct {
 
 type MutationResolver interface {
 	CreateChild(ctx context.Context, input model.NewChild) (*model.Child, error)
-	UpdateChild(ctx context.Context, parentID string, childID string, input model.UpdateChildInput) (*model.Child, error)
-	DeleteChild(ctx context.Context, parentID string, childID string) (bool, error)
+	UpdateChild(ctx context.Context, familyID string, childID string, input model.UpdateChildInput) (*model.Child, error)
+	DeleteChild(ctx context.Context, familyID string, childID string) (bool, error)
 	CreateQuest(ctx context.Context, input model.NewQuest) (*model.Quest, error)
-	AssignQuest(ctx context.Context, questID string, childID string) (*model.Assignment, error)
+	AssignQuest(ctx context.Context, familyID string, questID string, childID string) (*model.Assignment, error)
 	CreateReward(ctx context.Context, input model.NewReward) (*model.Reward, error)
-	UpdateQuest(ctx context.Context, parentID string, questID string, input model.UpdateQuestInput) (*model.Quest, error)
-	DeleteQuest(ctx context.Context, parentID string, questID string) (bool, error)
-	UpdateReward(ctx context.Context, parentID string, rewardID string, input model.UpdateRewardInput) (*model.Reward, error)
-	DeleteReward(ctx context.Context, parentID string, rewardID string) (bool, error)
+	UpdateQuest(ctx context.Context, familyID string, questID string, input model.UpdateQuestInput) (*model.Quest, error)
+	DeleteQuest(ctx context.Context, familyID string, questID string) (bool, error)
+	UpdateReward(ctx context.Context, familyID string, rewardID string, input model.UpdateRewardInput) (*model.Reward, error)
+	DeleteReward(ctx context.Context, familyID string, rewardID string) (bool, error)
+	DeleteFamily(ctx context.Context, familyID string) (bool, error)
 	DeleteAssignment(ctx context.Context, assignmentID string) (bool, error)
+	CreateFamily(ctx context.Context, input model.NewFamily) (*model.Family, error)
+	RenameFamily(ctx context.Context, familyID string, name string) (*model.Family, error)
 	CompleteAssignment(ctx context.Context, assignmentID string) (*model.Assignment, error)
 	PurchaseItem(ctx context.Context, childID string, itemName string, priceGold int) (*model.Child, error)
-	CreateCheckoutSession(ctx context.Context, parentID string, successURL string, cancelURL string) (string, error)
+	CreateCheckoutSession(ctx context.Context, familyID string, successURL string, cancelURL string) (string, error)
 }
 type QueryResolver interface {
 	Health(ctx context.Context) (string, error)
-	Children(ctx context.Context, parentID string) ([]*model.Child, error)
-	Quests(ctx context.Context, parentID string) ([]*model.Quest, error)
-	Rewards(ctx context.Context, parentID string) ([]*model.Reward, error)
+	Children(ctx context.Context, familyID string) ([]*model.Child, error)
+	Quests(ctx context.Context, familyID string) ([]*model.Quest, error)
+	Rewards(ctx context.Context, familyID string) ([]*model.Reward, error)
+	Family(ctx context.Context, id string) (*model.Family, error)
+	Families(ctx context.Context, ownerID string) ([]*model.Family, error)
 	MyAssignments(ctx context.Context, childID string) ([]*model.Assignment, error)
-	SubscriptionStatus(ctx context.Context, parentID string) (*model.SubscriptionStatus, error)
+	SubscriptionStatus(ctx context.Context, familyID string) (*model.SubscriptionStatus, error)
 }
 
 type executableSchema struct {
@@ -231,6 +248,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.AvatarItem.PriceGold(childComplexity), true
 
+	case "Child.familyId":
+		if e.complexity.Child.FamilyID == nil {
+			break
+		}
+
+		return e.complexity.Child.FamilyID(childComplexity), true
+
 	case "Child.gold":
 		if e.complexity.Child.Gold == nil {
 			break
@@ -252,19 +276,40 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Child.Name(childComplexity), true
 
-	case "Child.parentId":
-		if e.complexity.Child.ParentID == nil {
-			break
-		}
-
-		return e.complexity.Child.ParentID(childComplexity), true
-
 	case "Child.xp":
 		if e.complexity.Child.Xp == nil {
 			break
 		}
 
 		return e.complexity.Child.Xp(childComplexity), true
+
+	case "Family.createdAt":
+		if e.complexity.Family.CreatedAt == nil {
+			break
+		}
+
+		return e.complexity.Family.CreatedAt(childComplexity), true
+
+	case "Family.id":
+		if e.complexity.Family.ID == nil {
+			break
+		}
+
+		return e.complexity.Family.ID(childComplexity), true
+
+	case "Family.name":
+		if e.complexity.Family.Name == nil {
+			break
+		}
+
+		return e.complexity.Family.Name(childComplexity), true
+
+	case "Family.ownerId":
+		if e.complexity.Family.OwnerID == nil {
+			break
+		}
+
+		return e.complexity.Family.OwnerID(childComplexity), true
 
 	case "Mutation.assignQuest":
 		if e.complexity.Mutation.AssignQuest == nil {
@@ -276,7 +321,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Mutation.AssignQuest(childComplexity, args["questId"].(string), args["childId"].(string)), true
+		return e.complexity.Mutation.AssignQuest(childComplexity, args["familyId"].(string), args["questId"].(string), args["childId"].(string)), true
 
 	case "Mutation.completeAssignment":
 		if e.complexity.Mutation.CompleteAssignment == nil {
@@ -300,7 +345,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Mutation.CreateCheckoutSession(childComplexity, args["parentId"].(string), args["successUrl"].(string), args["cancelUrl"].(string)), true
+		return e.complexity.Mutation.CreateCheckoutSession(childComplexity, args["familyId"].(string), args["successUrl"].(string), args["cancelUrl"].(string)), true
 
 	case "Mutation.createChild":
 		if e.complexity.Mutation.CreateChild == nil {
@@ -313,6 +358,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.CreateChild(childComplexity, args["input"].(model.NewChild)), true
+
+	case "Mutation.createFamily":
+		if e.complexity.Mutation.CreateFamily == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_createFamily_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.CreateFamily(childComplexity, args["input"].(model.NewFamily)), true
 
 	case "Mutation.createQuest":
 		if e.complexity.Mutation.CreateQuest == nil {
@@ -360,7 +417,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Mutation.DeleteChild(childComplexity, args["parentId"].(string), args["childId"].(string)), true
+		return e.complexity.Mutation.DeleteChild(childComplexity, args["familyId"].(string), args["childId"].(string)), true
+
+	case "Mutation.deleteFamily":
+		if e.complexity.Mutation.DeleteFamily == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_deleteFamily_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.DeleteFamily(childComplexity, args["familyId"].(string)), true
 
 	case "Mutation.deleteQuest":
 		if e.complexity.Mutation.DeleteQuest == nil {
@@ -372,7 +441,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Mutation.DeleteQuest(childComplexity, args["parentId"].(string), args["questId"].(string)), true
+		return e.complexity.Mutation.DeleteQuest(childComplexity, args["familyId"].(string), args["questId"].(string)), true
 
 	case "Mutation.deleteReward":
 		if e.complexity.Mutation.DeleteReward == nil {
@@ -384,7 +453,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Mutation.DeleteReward(childComplexity, args["parentId"].(string), args["rewardId"].(string)), true
+		return e.complexity.Mutation.DeleteReward(childComplexity, args["familyId"].(string), args["rewardId"].(string)), true
 
 	case "Mutation.purchaseItem":
 		if e.complexity.Mutation.PurchaseItem == nil {
@@ -398,6 +467,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Mutation.PurchaseItem(childComplexity, args["childId"].(string), args["itemName"].(string), args["priceGold"].(int)), true
 
+	case "Mutation.renameFamily":
+		if e.complexity.Mutation.RenameFamily == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_renameFamily_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.RenameFamily(childComplexity, args["familyId"].(string), args["name"].(string)), true
+
 	case "Mutation.updateChild":
 		if e.complexity.Mutation.UpdateChild == nil {
 			break
@@ -408,7 +489,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Mutation.UpdateChild(childComplexity, args["parentId"].(string), args["childId"].(string), args["input"].(model.UpdateChildInput)), true
+		return e.complexity.Mutation.UpdateChild(childComplexity, args["familyId"].(string), args["childId"].(string), args["input"].(model.UpdateChildInput)), true
 
 	case "Mutation.updateQuest":
 		if e.complexity.Mutation.UpdateQuest == nil {
@@ -420,7 +501,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Mutation.UpdateQuest(childComplexity, args["parentId"].(string), args["questId"].(string), args["input"].(model.UpdateQuestInput)), true
+		return e.complexity.Mutation.UpdateQuest(childComplexity, args["familyId"].(string), args["questId"].(string), args["input"].(model.UpdateQuestInput)), true
 
 	case "Mutation.updateReward":
 		if e.complexity.Mutation.UpdateReward == nil {
@@ -432,7 +513,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Mutation.UpdateReward(childComplexity, args["parentId"].(string), args["rewardId"].(string), args["input"].(model.UpdateRewardInput)), true
+		return e.complexity.Mutation.UpdateReward(childComplexity, args["familyId"].(string), args["rewardId"].(string), args["input"].(model.UpdateRewardInput)), true
 
 	case "Query.children":
 		if e.complexity.Query.Children == nil {
@@ -444,7 +525,31 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Query.Children(childComplexity, args["parentId"].(string)), true
+		return e.complexity.Query.Children(childComplexity, args["familyId"].(string)), true
+
+	case "Query.families":
+		if e.complexity.Query.Families == nil {
+			break
+		}
+
+		args, err := ec.field_Query_families_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.Families(childComplexity, args["ownerId"].(string)), true
+
+	case "Query.family":
+		if e.complexity.Query.Family == nil {
+			break
+		}
+
+		args, err := ec.field_Query_family_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.Family(childComplexity, args["id"].(string)), true
 
 	case "Query.health":
 		if e.complexity.Query.Health == nil {
@@ -475,7 +580,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Query.Quests(childComplexity, args["parentId"].(string)), true
+		return e.complexity.Query.Quests(childComplexity, args["familyId"].(string)), true
 
 	case "Query.rewards":
 		if e.complexity.Query.Rewards == nil {
@@ -487,7 +592,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Query.Rewards(childComplexity, args["parentId"].(string)), true
+		return e.complexity.Query.Rewards(childComplexity, args["familyId"].(string)), true
 
 	case "Query.subscriptionStatus":
 		if e.complexity.Query.SubscriptionStatus == nil {
@@ -499,7 +604,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Query.SubscriptionStatus(childComplexity, args["parentId"].(string)), true
+		return e.complexity.Query.SubscriptionStatus(childComplexity, args["familyId"].(string)), true
 
 	case "Quest.description":
 		if e.complexity.Quest.Description == nil {
@@ -507,6 +612,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Quest.Description(childComplexity), true
+
+	case "Quest.familyId":
+		if e.complexity.Quest.FamilyID == nil {
+			break
+		}
+
+		return e.complexity.Quest.FamilyID(childComplexity), true
 
 	case "Quest.gold":
 		if e.complexity.Quest.Gold == nil {
@@ -522,13 +634,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Quest.ID(childComplexity), true
 
-	case "Quest.parentId":
-		if e.complexity.Quest.ParentID == nil {
-			break
-		}
-
-		return e.complexity.Quest.ParentID(childComplexity), true
-
 	case "Quest.title":
 		if e.complexity.Quest.Title == nil {
 			break
@@ -543,6 +648,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Quest.Xp(childComplexity), true
 
+	case "Reward.familyId":
+		if e.complexity.Reward.FamilyID == nil {
+			break
+		}
+
+		return e.complexity.Reward.FamilyID(childComplexity), true
+
 	case "Reward.id":
 		if e.complexity.Reward.ID == nil {
 			break
@@ -556,13 +668,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Reward.Name(childComplexity), true
-
-	case "Reward.parentId":
-		if e.complexity.Reward.ParentID == nil {
-			break
-		}
-
-		return e.complexity.Reward.ParentID(childComplexity), true
 
 	case "Reward.xpThreshold":
 		if e.complexity.Reward.XpThreshold == nil {
@@ -615,6 +720,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 	ec := executionContext{opCtx, e, 0, 0, make(chan graphql.DeferredResult)}
 	inputUnmarshalMap := graphql.BuildUnmarshalerMap(
 		ec.unmarshalInputNewChild,
+		ec.unmarshalInputNewFamily,
 		ec.unmarshalInputNewQuest,
 		ec.unmarshalInputNewReward,
 		ec.unmarshalInputUpdateChildInput,
@@ -739,16 +845,21 @@ var parsedSchema = gqlparser.MustLoadSchema(sources...)
 func (ec *executionContext) field_Mutation_assignQuest_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "questId", ec.unmarshalNID2string)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "familyId", ec.unmarshalNID2string)
 	if err != nil {
 		return nil, err
 	}
-	args["questId"] = arg0
-	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "childId", ec.unmarshalNID2string)
+	args["familyId"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "questId", ec.unmarshalNID2string)
 	if err != nil {
 		return nil, err
 	}
-	args["childId"] = arg1
+	args["questId"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "childId", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["childId"] = arg2
 	return args, nil
 }
 
@@ -766,11 +877,11 @@ func (ec *executionContext) field_Mutation_completeAssignment_args(ctx context.C
 func (ec *executionContext) field_Mutation_createCheckoutSession_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "parentId", ec.unmarshalNID2string)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "familyId", ec.unmarshalNID2string)
 	if err != nil {
 		return nil, err
 	}
-	args["parentId"] = arg0
+	args["familyId"] = arg0
 	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "successUrl", ec.unmarshalNString2string)
 	if err != nil {
 		return nil, err
@@ -788,6 +899,17 @@ func (ec *executionContext) field_Mutation_createChild_args(ctx context.Context,
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNNewChild2chorequestᚋbackendᚋgraphᚋmodelᚐNewChild)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_createFamily_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNNewFamily2chorequestᚋbackendᚋgraphᚋmodelᚐNewFamily)
 	if err != nil {
 		return nil, err
 	}
@@ -831,11 +953,11 @@ func (ec *executionContext) field_Mutation_deleteAssignment_args(ctx context.Con
 func (ec *executionContext) field_Mutation_deleteChild_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "parentId", ec.unmarshalNID2string)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "familyId", ec.unmarshalNID2string)
 	if err != nil {
 		return nil, err
 	}
-	args["parentId"] = arg0
+	args["familyId"] = arg0
 	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "childId", ec.unmarshalNID2string)
 	if err != nil {
 		return nil, err
@@ -844,14 +966,25 @@ func (ec *executionContext) field_Mutation_deleteChild_args(ctx context.Context,
 	return args, nil
 }
 
-func (ec *executionContext) field_Mutation_deleteQuest_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+func (ec *executionContext) field_Mutation_deleteFamily_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "parentId", ec.unmarshalNID2string)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "familyId", ec.unmarshalNID2string)
 	if err != nil {
 		return nil, err
 	}
-	args["parentId"] = arg0
+	args["familyId"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_deleteQuest_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "familyId", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["familyId"] = arg0
 	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "questId", ec.unmarshalNID2string)
 	if err != nil {
 		return nil, err
@@ -863,11 +996,11 @@ func (ec *executionContext) field_Mutation_deleteQuest_args(ctx context.Context,
 func (ec *executionContext) field_Mutation_deleteReward_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "parentId", ec.unmarshalNID2string)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "familyId", ec.unmarshalNID2string)
 	if err != nil {
 		return nil, err
 	}
-	args["parentId"] = arg0
+	args["familyId"] = arg0
 	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "rewardId", ec.unmarshalNID2string)
 	if err != nil {
 		return nil, err
@@ -897,14 +1030,30 @@ func (ec *executionContext) field_Mutation_purchaseItem_args(ctx context.Context
 	return args, nil
 }
 
-func (ec *executionContext) field_Mutation_updateChild_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+func (ec *executionContext) field_Mutation_renameFamily_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "parentId", ec.unmarshalNID2string)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "familyId", ec.unmarshalNID2string)
 	if err != nil {
 		return nil, err
 	}
-	args["parentId"] = arg0
+	args["familyId"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "name", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["name"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_updateChild_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "familyId", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["familyId"] = arg0
 	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "childId", ec.unmarshalNID2string)
 	if err != nil {
 		return nil, err
@@ -921,11 +1070,11 @@ func (ec *executionContext) field_Mutation_updateChild_args(ctx context.Context,
 func (ec *executionContext) field_Mutation_updateQuest_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "parentId", ec.unmarshalNID2string)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "familyId", ec.unmarshalNID2string)
 	if err != nil {
 		return nil, err
 	}
-	args["parentId"] = arg0
+	args["familyId"] = arg0
 	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "questId", ec.unmarshalNID2string)
 	if err != nil {
 		return nil, err
@@ -942,11 +1091,11 @@ func (ec *executionContext) field_Mutation_updateQuest_args(ctx context.Context,
 func (ec *executionContext) field_Mutation_updateReward_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "parentId", ec.unmarshalNID2string)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "familyId", ec.unmarshalNID2string)
 	if err != nil {
 		return nil, err
 	}
-	args["parentId"] = arg0
+	args["familyId"] = arg0
 	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "rewardId", ec.unmarshalNID2string)
 	if err != nil {
 		return nil, err
@@ -974,11 +1123,33 @@ func (ec *executionContext) field_Query___type_args(ctx context.Context, rawArgs
 func (ec *executionContext) field_Query_children_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "parentId", ec.unmarshalNID2string)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "familyId", ec.unmarshalNID2string)
 	if err != nil {
 		return nil, err
 	}
-	args["parentId"] = arg0
+	args["familyId"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_families_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "ownerId", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["ownerId"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_family_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
 	return args, nil
 }
 
@@ -996,33 +1167,33 @@ func (ec *executionContext) field_Query_myAssignments_args(ctx context.Context, 
 func (ec *executionContext) field_Query_quests_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "parentId", ec.unmarshalNID2string)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "familyId", ec.unmarshalNID2string)
 	if err != nil {
 		return nil, err
 	}
-	args["parentId"] = arg0
+	args["familyId"] = arg0
 	return args, nil
 }
 
 func (ec *executionContext) field_Query_rewards_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "parentId", ec.unmarshalNID2string)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "familyId", ec.unmarshalNID2string)
 	if err != nil {
 		return nil, err
 	}
-	args["parentId"] = arg0
+	args["familyId"] = arg0
 	return args, nil
 }
 
 func (ec *executionContext) field_Query_subscriptionStatus_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "parentId", ec.unmarshalNID2string)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "familyId", ec.unmarshalNID2string)
 	if err != nil {
 		return nil, err
 	}
-	args["parentId"] = arg0
+	args["familyId"] = arg0
 	return args, nil
 }
 
@@ -1163,8 +1334,8 @@ func (ec *executionContext) fieldContext_Assignment_quest(_ context.Context, fie
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_Quest_id(ctx, field)
-			case "parentId":
-				return ec.fieldContext_Quest_parentId(ctx, field)
+			case "familyId":
+				return ec.fieldContext_Quest_familyId(ctx, field)
 			case "title":
 				return ec.fieldContext_Quest_title(ctx, field)
 			case "description":
@@ -1529,8 +1700,8 @@ func (ec *executionContext) fieldContext_Child_id(_ context.Context, field graph
 	return fc, nil
 }
 
-func (ec *executionContext) _Child_parentId(ctx context.Context, field graphql.CollectedField, obj *model.Child) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Child_parentId(ctx, field)
+func (ec *executionContext) _Child_familyId(ctx context.Context, field graphql.CollectedField, obj *model.Child) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Child_familyId(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -1543,7 +1714,7 @@ func (ec *executionContext) _Child_parentId(ctx context.Context, field graphql.C
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.ParentID, nil
+		return obj.FamilyID, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1560,7 +1731,7 @@ func (ec *executionContext) _Child_parentId(ctx context.Context, field graphql.C
 	return ec.marshalNID2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Child_parentId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Child_familyId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Child",
 		Field:      field,
@@ -1705,6 +1876,182 @@ func (ec *executionContext) fieldContext_Child_gold(_ context.Context, field gra
 	return fc, nil
 }
 
+func (ec *executionContext) _Family_id(ctx context.Context, field graphql.CollectedField, obj *model.Family) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Family_id(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNID2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Family_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Family",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Family_name(ctx context.Context, field graphql.CollectedField, obj *model.Family) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Family_name(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Name, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Family_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Family",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Family_ownerId(ctx context.Context, field graphql.CollectedField, obj *model.Family) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Family_ownerId(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.OwnerID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNID2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Family_ownerId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Family",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Family_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.Family) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Family_createdAt(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.CreatedAt, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Family_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Family",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_createChild(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Mutation_createChild(ctx, field)
 	if err != nil {
@@ -1746,8 +2093,8 @@ func (ec *executionContext) fieldContext_Mutation_createChild(ctx context.Contex
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_Child_id(ctx, field)
-			case "parentId":
-				return ec.fieldContext_Child_parentId(ctx, field)
+			case "familyId":
+				return ec.fieldContext_Child_familyId(ctx, field)
 			case "name":
 				return ec.fieldContext_Child_name(ctx, field)
 			case "xp":
@@ -1786,7 +2133,7 @@ func (ec *executionContext) _Mutation_updateChild(ctx context.Context, field gra
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().UpdateChild(rctx, fc.Args["parentId"].(string), fc.Args["childId"].(string), fc.Args["input"].(model.UpdateChildInput))
+		return ec.resolvers.Mutation().UpdateChild(rctx, fc.Args["familyId"].(string), fc.Args["childId"].(string), fc.Args["input"].(model.UpdateChildInput))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1813,8 +2160,8 @@ func (ec *executionContext) fieldContext_Mutation_updateChild(ctx context.Contex
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_Child_id(ctx, field)
-			case "parentId":
-				return ec.fieldContext_Child_parentId(ctx, field)
+			case "familyId":
+				return ec.fieldContext_Child_familyId(ctx, field)
 			case "name":
 				return ec.fieldContext_Child_name(ctx, field)
 			case "xp":
@@ -1853,7 +2200,7 @@ func (ec *executionContext) _Mutation_deleteChild(ctx context.Context, field gra
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().DeleteChild(rctx, fc.Args["parentId"].(string), fc.Args["childId"].(string))
+		return ec.resolvers.Mutation().DeleteChild(rctx, fc.Args["familyId"].(string), fc.Args["childId"].(string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1935,8 +2282,8 @@ func (ec *executionContext) fieldContext_Mutation_createQuest(ctx context.Contex
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_Quest_id(ctx, field)
-			case "parentId":
-				return ec.fieldContext_Quest_parentId(ctx, field)
+			case "familyId":
+				return ec.fieldContext_Quest_familyId(ctx, field)
 			case "title":
 				return ec.fieldContext_Quest_title(ctx, field)
 			case "description":
@@ -1977,7 +2324,7 @@ func (ec *executionContext) _Mutation_assignQuest(ctx context.Context, field gra
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().AssignQuest(rctx, fc.Args["questId"].(string), fc.Args["childId"].(string))
+		return ec.resolvers.Mutation().AssignQuest(rctx, fc.Args["familyId"].(string), fc.Args["questId"].(string), fc.Args["childId"].(string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -2073,8 +2420,8 @@ func (ec *executionContext) fieldContext_Mutation_createReward(ctx context.Conte
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_Reward_id(ctx, field)
-			case "parentId":
-				return ec.fieldContext_Reward_parentId(ctx, field)
+			case "familyId":
+				return ec.fieldContext_Reward_familyId(ctx, field)
 			case "name":
 				return ec.fieldContext_Reward_name(ctx, field)
 			case "xpThreshold":
@@ -2111,7 +2458,7 @@ func (ec *executionContext) _Mutation_updateQuest(ctx context.Context, field gra
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().UpdateQuest(rctx, fc.Args["parentId"].(string), fc.Args["questId"].(string), fc.Args["input"].(model.UpdateQuestInput))
+		return ec.resolvers.Mutation().UpdateQuest(rctx, fc.Args["familyId"].(string), fc.Args["questId"].(string), fc.Args["input"].(model.UpdateQuestInput))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -2138,8 +2485,8 @@ func (ec *executionContext) fieldContext_Mutation_updateQuest(ctx context.Contex
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_Quest_id(ctx, field)
-			case "parentId":
-				return ec.fieldContext_Quest_parentId(ctx, field)
+			case "familyId":
+				return ec.fieldContext_Quest_familyId(ctx, field)
 			case "title":
 				return ec.fieldContext_Quest_title(ctx, field)
 			case "description":
@@ -2180,7 +2527,7 @@ func (ec *executionContext) _Mutation_deleteQuest(ctx context.Context, field gra
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().DeleteQuest(rctx, fc.Args["parentId"].(string), fc.Args["questId"].(string))
+		return ec.resolvers.Mutation().DeleteQuest(rctx, fc.Args["familyId"].(string), fc.Args["questId"].(string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -2235,7 +2582,7 @@ func (ec *executionContext) _Mutation_updateReward(ctx context.Context, field gr
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().UpdateReward(rctx, fc.Args["parentId"].(string), fc.Args["rewardId"].(string), fc.Args["input"].(model.UpdateRewardInput))
+		return ec.resolvers.Mutation().UpdateReward(rctx, fc.Args["familyId"].(string), fc.Args["rewardId"].(string), fc.Args["input"].(model.UpdateRewardInput))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -2262,8 +2609,8 @@ func (ec *executionContext) fieldContext_Mutation_updateReward(ctx context.Conte
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_Reward_id(ctx, field)
-			case "parentId":
-				return ec.fieldContext_Reward_parentId(ctx, field)
+			case "familyId":
+				return ec.fieldContext_Reward_familyId(ctx, field)
 			case "name":
 				return ec.fieldContext_Reward_name(ctx, field)
 			case "xpThreshold":
@@ -2300,7 +2647,7 @@ func (ec *executionContext) _Mutation_deleteReward(ctx context.Context, field gr
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().DeleteReward(rctx, fc.Args["parentId"].(string), fc.Args["rewardId"].(string))
+		return ec.resolvers.Mutation().DeleteReward(rctx, fc.Args["familyId"].(string), fc.Args["rewardId"].(string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -2335,6 +2682,61 @@ func (ec *executionContext) fieldContext_Mutation_deleteReward(ctx context.Conte
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_deleteReward_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_deleteFamily(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_deleteFamily(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().DeleteFamily(rctx, fc.Args["familyId"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_deleteFamily(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_deleteFamily_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -2390,6 +2792,136 @@ func (ec *executionContext) fieldContext_Mutation_deleteAssignment(ctx context.C
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_deleteAssignment_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_createFamily(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_createFamily(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().CreateFamily(rctx, fc.Args["input"].(model.NewFamily))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.Family)
+	fc.Result = res
+	return ec.marshalNFamily2ᚖchorequestᚋbackendᚋgraphᚋmodelᚐFamily(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_createFamily(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Family_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Family_name(ctx, field)
+			case "ownerId":
+				return ec.fieldContext_Family_ownerId(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Family_createdAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Family", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_createFamily_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_renameFamily(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_renameFamily(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().RenameFamily(rctx, fc.Args["familyId"].(string), fc.Args["name"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.Family)
+	fc.Result = res
+	return ec.marshalNFamily2ᚖchorequestᚋbackendᚋgraphᚋmodelᚐFamily(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_renameFamily(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Family_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Family_name(ctx, field)
+			case "ownerId":
+				return ec.fieldContext_Family_ownerId(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Family_createdAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Family", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_renameFamily_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -2506,8 +3038,8 @@ func (ec *executionContext) fieldContext_Mutation_purchaseItem(ctx context.Conte
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_Child_id(ctx, field)
-			case "parentId":
-				return ec.fieldContext_Child_parentId(ctx, field)
+			case "familyId":
+				return ec.fieldContext_Child_familyId(ctx, field)
 			case "name":
 				return ec.fieldContext_Child_name(ctx, field)
 			case "xp":
@@ -2546,7 +3078,7 @@ func (ec *executionContext) _Mutation_createCheckoutSession(ctx context.Context,
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().CreateCheckoutSession(rctx, fc.Args["parentId"].(string), fc.Args["successUrl"].(string), fc.Args["cancelUrl"].(string))
+		return ec.resolvers.Mutation().CreateCheckoutSession(rctx, fc.Args["familyId"].(string), fc.Args["successUrl"].(string), fc.Args["cancelUrl"].(string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -2645,7 +3177,7 @@ func (ec *executionContext) _Query_children(ctx context.Context, field graphql.C
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().Children(rctx, fc.Args["parentId"].(string))
+		return ec.resolvers.Query().Children(rctx, fc.Args["familyId"].(string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -2672,8 +3204,8 @@ func (ec *executionContext) fieldContext_Query_children(ctx context.Context, fie
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_Child_id(ctx, field)
-			case "parentId":
-				return ec.fieldContext_Child_parentId(ctx, field)
+			case "familyId":
+				return ec.fieldContext_Child_familyId(ctx, field)
 			case "name":
 				return ec.fieldContext_Child_name(ctx, field)
 			case "xp":
@@ -2712,7 +3244,7 @@ func (ec *executionContext) _Query_quests(ctx context.Context, field graphql.Col
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().Quests(rctx, fc.Args["parentId"].(string))
+		return ec.resolvers.Query().Quests(rctx, fc.Args["familyId"].(string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -2739,8 +3271,8 @@ func (ec *executionContext) fieldContext_Query_quests(ctx context.Context, field
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_Quest_id(ctx, field)
-			case "parentId":
-				return ec.fieldContext_Quest_parentId(ctx, field)
+			case "familyId":
+				return ec.fieldContext_Quest_familyId(ctx, field)
 			case "title":
 				return ec.fieldContext_Quest_title(ctx, field)
 			case "description":
@@ -2781,7 +3313,7 @@ func (ec *executionContext) _Query_rewards(ctx context.Context, field graphql.Co
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().Rewards(rctx, fc.Args["parentId"].(string))
+		return ec.resolvers.Query().Rewards(rctx, fc.Args["familyId"].(string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -2808,8 +3340,8 @@ func (ec *executionContext) fieldContext_Query_rewards(ctx context.Context, fiel
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_Reward_id(ctx, field)
-			case "parentId":
-				return ec.fieldContext_Reward_parentId(ctx, field)
+			case "familyId":
+				return ec.fieldContext_Reward_familyId(ctx, field)
 			case "name":
 				return ec.fieldContext_Reward_name(ctx, field)
 			case "xpThreshold":
@@ -2826,6 +3358,133 @@ func (ec *executionContext) fieldContext_Query_rewards(ctx context.Context, fiel
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_rewards_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_family(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_family(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().Family(rctx, fc.Args["id"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.Family)
+	fc.Result = res
+	return ec.marshalOFamily2ᚖchorequestᚋbackendᚋgraphᚋmodelᚐFamily(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_family(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Family_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Family_name(ctx, field)
+			case "ownerId":
+				return ec.fieldContext_Family_ownerId(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Family_createdAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Family", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_family_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_families(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_families(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().Families(rctx, fc.Args["ownerId"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.Family)
+	fc.Result = res
+	return ec.marshalNFamily2ᚕᚖchorequestᚋbackendᚋgraphᚋmodelᚐFamilyᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_families(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Family_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Family_name(ctx, field)
+			case "ownerId":
+				return ec.fieldContext_Family_ownerId(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Family_createdAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Family", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_families_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -2915,7 +3574,7 @@ func (ec *executionContext) _Query_subscriptionStatus(ctx context.Context, field
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().SubscriptionStatus(rctx, fc.Args["parentId"].(string))
+		return ec.resolvers.Query().SubscriptionStatus(rctx, fc.Args["familyId"].(string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -3137,8 +3796,8 @@ func (ec *executionContext) fieldContext_Quest_id(_ context.Context, field graph
 	return fc, nil
 }
 
-func (ec *executionContext) _Quest_parentId(ctx context.Context, field graphql.CollectedField, obj *model.Quest) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Quest_parentId(ctx, field)
+func (ec *executionContext) _Quest_familyId(ctx context.Context, field graphql.CollectedField, obj *model.Quest) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Quest_familyId(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -3151,7 +3810,7 @@ func (ec *executionContext) _Quest_parentId(ctx context.Context, field graphql.C
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.ParentID, nil
+		return obj.FamilyID, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -3168,7 +3827,7 @@ func (ec *executionContext) _Quest_parentId(ctx context.Context, field graphql.C
 	return ec.marshalNID2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Quest_parentId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Quest_familyId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Quest",
 		Field:      field,
@@ -3398,8 +4057,8 @@ func (ec *executionContext) fieldContext_Reward_id(_ context.Context, field grap
 	return fc, nil
 }
 
-func (ec *executionContext) _Reward_parentId(ctx context.Context, field graphql.CollectedField, obj *model.Reward) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Reward_parentId(ctx, field)
+func (ec *executionContext) _Reward_familyId(ctx context.Context, field graphql.CollectedField, obj *model.Reward) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Reward_familyId(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -3412,7 +4071,7 @@ func (ec *executionContext) _Reward_parentId(ctx context.Context, field graphql.
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.ParentID, nil
+		return obj.FamilyID, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -3429,7 +4088,7 @@ func (ec *executionContext) _Reward_parentId(ctx context.Context, field graphql.
 	return ec.marshalNID2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Reward_parentId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Reward_familyId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Reward",
 		Field:      field,
@@ -5705,20 +6364,54 @@ func (ec *executionContext) unmarshalInputNewChild(ctx context.Context, obj any)
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"parentId", "name"}
+	fieldsInOrder := [...]string{"familyId", "name"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
-		case "parentId":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("parentId"))
+		case "familyId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("familyId"))
 			data, err := ec.unmarshalNID2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.ParentID = data
+			it.FamilyID = data
+		case "name":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Name = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputNewFamily(ctx context.Context, obj any) (model.NewFamily, error) {
+	var it model.NewFamily
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"ownerId", "name"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "ownerId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("ownerId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.OwnerID = data
 		case "name":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
 			data, err := ec.unmarshalNString2string(ctx, v)
@@ -5739,20 +6432,20 @@ func (ec *executionContext) unmarshalInputNewQuest(ctx context.Context, obj any)
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"parentId", "title", "description", "xp", "gold"}
+	fieldsInOrder := [...]string{"familyId", "title", "description", "xp", "gold"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
-		case "parentId":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("parentId"))
+		case "familyId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("familyId"))
 			data, err := ec.unmarshalNID2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.ParentID = data
+			it.FamilyID = data
 		case "title":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("title"))
 			data, err := ec.unmarshalNString2string(ctx, v)
@@ -5794,20 +6487,20 @@ func (ec *executionContext) unmarshalInputNewReward(ctx context.Context, obj any
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"parentId", "name", "xpThreshold"}
+	fieldsInOrder := [...]string{"familyId", "name", "xpThreshold"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
-		case "parentId":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("parentId"))
+		case "familyId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("familyId"))
 			data, err := ec.unmarshalNID2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.ParentID = data
+			it.FamilyID = data
 		case "name":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
 			data, err := ec.unmarshalNString2string(ctx, v)
@@ -6071,8 +6764,8 @@ func (ec *executionContext) _Child(ctx context.Context, sel ast.SelectionSet, ob
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "parentId":
-			out.Values[i] = ec._Child_parentId(ctx, field, obj)
+		case "familyId":
+			out.Values[i] = ec._Child_familyId(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -6088,6 +6781,60 @@ func (ec *executionContext) _Child(ctx context.Context, sel ast.SelectionSet, ob
 			}
 		case "gold":
 			out.Values[i] = ec._Child_gold(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var familyImplementors = []string{"Family"}
+
+func (ec *executionContext) _Family(ctx context.Context, sel ast.SelectionSet, obj *model.Family) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, familyImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Family")
+		case "id":
+			out.Values[i] = ec._Family_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "name":
+			out.Values[i] = ec._Family_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "ownerId":
+			out.Values[i] = ec._Family_ownerId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "createdAt":
+			out.Values[i] = ec._Family_createdAt(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -6203,9 +6950,30 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "deleteFamily":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_deleteFamily(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "deleteAssignment":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_deleteAssignment(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "createFamily":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_createFamily(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "renameFamily":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_renameFamily(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -6361,6 +7129,47 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "family":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_family(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "families":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_families(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "myAssignments":
 			field := field
 
@@ -6452,8 +7261,8 @@ func (ec *executionContext) _Quest(ctx context.Context, sel ast.SelectionSet, ob
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "parentId":
-			out.Values[i] = ec._Quest_parentId(ctx, field, obj)
+		case "familyId":
+			out.Values[i] = ec._Quest_familyId(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -6513,8 +7322,8 @@ func (ec *executionContext) _Reward(ctx context.Context, sel ast.SelectionSet, o
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "parentId":
-			out.Values[i] = ec._Reward_parentId(ctx, field, obj)
+		case "familyId":
+			out.Values[i] = ec._Reward_familyId(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -7108,6 +7917,64 @@ func (ec *executionContext) marshalNChild2ᚖchorequestᚋbackendᚋgraphᚋmode
 	return ec._Child(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNFamily2chorequestᚋbackendᚋgraphᚋmodelᚐFamily(ctx context.Context, sel ast.SelectionSet, v model.Family) graphql.Marshaler {
+	return ec._Family(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNFamily2ᚕᚖchorequestᚋbackendᚋgraphᚋmodelᚐFamilyᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Family) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNFamily2ᚖchorequestᚋbackendᚋgraphᚋmodelᚐFamily(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNFamily2ᚖchorequestᚋbackendᚋgraphᚋmodelᚐFamily(ctx context.Context, sel ast.SelectionSet, v *model.Family) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._Family(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNID2string(ctx context.Context, v any) (string, error) {
 	res, err := graphql.UnmarshalID(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -7142,6 +8009,11 @@ func (ec *executionContext) marshalNInt2int(ctx context.Context, sel ast.Selecti
 
 func (ec *executionContext) unmarshalNNewChild2chorequestᚋbackendᚋgraphᚋmodelᚐNewChild(ctx context.Context, v any) (model.NewChild, error) {
 	res, err := ec.unmarshalInputNewChild(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNNewFamily2chorequestᚋbackendᚋgraphᚋmodelᚐNewFamily(ctx context.Context, v any) (model.NewFamily, error) {
+	res, err := ec.unmarshalInputNewFamily(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
@@ -7607,6 +8479,13 @@ func (ec *executionContext) marshalOBoolean2ᚖbool(ctx context.Context, sel ast
 	_ = ctx
 	res := graphql.MarshalBoolean(*v)
 	return res
+}
+
+func (ec *executionContext) marshalOFamily2ᚖchorequestᚋbackendᚋgraphᚋmodelᚐFamily(ctx context.Context, sel ast.SelectionSet, v *model.Family) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._Family(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalOString2ᚖstring(ctx context.Context, v any) (*string, error) {

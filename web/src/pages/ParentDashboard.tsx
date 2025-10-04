@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { SVGProps } from 'react'
 import { gql } from '@apollo/client'
 import { useLazyQuery, useMutation, useQuery } from '@apollo/client/react'
@@ -14,22 +14,22 @@ import Label from '../components/ui/Label'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card'
 import NotificationModal from '../components/ui/NotificationModal'
 
-const Q_CHILDREN = gql`query($parentId: ID!) { children(parentId:$parentId){ id name xp gold parentId } }`
-const Q_QUESTS = gql`query($parentId: ID!) { quests(parentId:$parentId){ id title description xp gold parentId } }`
-const Q_REWARDS = gql`query($parentId: ID!) { rewards(parentId:$parentId){ id name xpThreshold parentId } }`
+const Q_CHILDREN = gql`query($familyId: ID!) { children(familyId:$familyId){ id name xp gold familyId } }`
+const Q_QUESTS = gql`query($familyId: ID!) { quests(familyId:$familyId){ id title description xp gold familyId } }`
+const Q_REWARDS = gql`query($familyId: ID!) { rewards(familyId:$familyId){ id name xpThreshold familyId } }`
 
-const M_CREATE_CHILD = gql`mutation($parentId: ID!, $name: String!){ createChild(input:{parentId:$parentId,name:$name}){ id name xp gold parentId } }`
-const M_UPDATE_CHILD = gql`mutation($parentId: ID!, $childId: ID!, $name: String!){ updateChild(parentId:$parentId, childId:$childId, input:{ name:$name }){ id name xp gold parentId } }`
-const M_DELETE_CHILD = gql`mutation($parentId: ID!, $childId: ID!){ deleteChild(parentId:$parentId, childId:$childId) }`
-const M_CREATE_QUEST = gql`mutation($parentId: ID!, $title: String!, $description: String, $xp: Int!, $gold: Int!){ createQuest(input:{parentId:$parentId,title:$title,description:$description,xp:$xp,gold:$gold}){ id title } }`
-const M_CREATE_REWARD = gql`mutation($parentId: ID!, $name: String!, $xpThreshold: Int!){ createReward(input:{parentId:$parentId,name:$name,xpThreshold:$xpThreshold}){ id name } }`
-const M_ASSIGN = gql`mutation($questId: ID!, $childId: ID!){ assignQuest(questId:$questId, childId:$childId){ id status childId quest{ id title } } }`
-const M_UPDATE_QUEST = gql`mutation($parentId: ID!, $questId: ID!, $input: UpdateQuestInput!){ updateQuest(parentId:$parentId, questId:$questId, input:$input){ id title description xp gold parentId } }`
-const M_DELETE_QUEST = gql`mutation($parentId: ID!, $questId: ID!){ deleteQuest(parentId:$parentId, questId:$questId) }`
-const M_UPDATE_REWARD = gql`mutation($parentId: ID!, $rewardId: ID!, $input: UpdateRewardInput!){ updateReward(parentId:$parentId, rewardId:$rewardId, input:$input){ id name xpThreshold parentId } }`
-const M_DELETE_REWARD = gql`mutation($parentId: ID!, $rewardId: ID!){ deleteReward(parentId:$parentId, rewardId:$rewardId) }`
-const Q_SUB = gql`query($parentId: ID!){ subscriptionStatus(parentId:$parentId){ active currentPeriodEnd } }`
-const M_CHECKOUT = gql`mutation($parentId: ID!, $success: String!, $cancel: String!){ createCheckoutSession(parentId:$parentId, successUrl:$success, cancelUrl:$cancel) }`
+const M_CREATE_CHILD = gql`mutation($familyId: ID!, $name: String!){ createChild(input:{familyId:$familyId,name:$name}){ id name xp gold familyId } }`
+const M_UPDATE_CHILD = gql`mutation($familyId: ID!, $childId: ID!, $name: String!){ updateChild(familyId:$familyId, childId:$childId, input:{ name:$name }){ id name xp gold familyId } }`
+const M_DELETE_CHILD = gql`mutation($familyId: ID!, $childId: ID!){ deleteChild(familyId:$familyId, childId:$childId) }`
+const M_CREATE_QUEST = gql`mutation($familyId: ID!, $title: String!, $description: String, $xp: Int!, $gold: Int!){ createQuest(input:{familyId:$familyId,title:$title,description:$description,xp:$xp,gold:$gold}){ id title } }`
+const M_CREATE_REWARD = gql`mutation($familyId: ID!, $name: String!, $xpThreshold: Int!){ createReward(input:{familyId:$familyId,name:$name,xpThreshold:$xpThreshold}){ id name } }`
+const M_ASSIGN = gql`mutation($familyId: ID!, $questId: ID!, $childId: ID!){ assignQuest(familyId:$familyId, questId:$questId, childId:$childId){ id status childId quest{ id title } } }`
+const M_UPDATE_QUEST = gql`mutation($familyId: ID!, $questId: ID!, $input: UpdateQuestInput!){ updateQuest(familyId:$familyId, questId:$questId, input:$input){ id title description xp gold familyId } }`
+const M_DELETE_QUEST = gql`mutation($familyId: ID!, $questId: ID!){ deleteQuest(familyId:$familyId, questId:$questId) }`
+const M_UPDATE_REWARD = gql`mutation($familyId: ID!, $rewardId: ID!, $input: UpdateRewardInput!){ updateReward(familyId:$familyId, rewardId:$rewardId, input:$input){ id name xpThreshold familyId } }`
+const M_DELETE_REWARD = gql`mutation($familyId: ID!, $rewardId: ID!){ deleteReward(familyId:$familyId, rewardId:$rewardId) }`
+const Q_SUB = gql`query($familyId: ID!){ subscriptionStatus(familyId:$familyId){ active currentPeriodEnd } }`
+const M_CHECKOUT = gql`mutation($familyId: ID!, $success: String!, $cancel: String!){ createCheckoutSession(familyId:$familyId, successUrl:$success, cancelUrl:$cancel) }`
 const Q_CHILD_ASSIGNMENTS = gql`query($childId: ID!){ myAssignments(childId:$childId){ id status quest{ id title } } }`
 const M_DELETE_ASSIGNMENT = gql`mutation($assignmentId: ID!){ deleteAssignment(assignmentId:$assignmentId) }`
 
@@ -118,8 +118,9 @@ type AssignmentSummary = {
 }
 
 export default function ParentDashboard(){
-  const { parentId = 'parent-1' } = useParams()
+  const { familyId = 'family-1' } = useParams()
   const auth = useAuth()
+  const setAuthState = useAuth(s => s.set)
   const [fetchChildAssignments] = useLazyQuery(Q_CHILD_ASSIGNMENTS, { fetchPolicy: 'network-only' })
   const [childName, setChildName] = useState('')
   const [editingChildId, setEditingChildId] = useState<string | null>(null)
@@ -144,10 +145,10 @@ export default function ParentDashboard(){
   const [activeAssignmentsChildId, setActiveAssignmentsChildId] = useState<string | null>(null)
   const [activeAssignments, setActiveAssignments] = useState<AssignmentSummary[]>([])
 
-  const { data: dc, refetch: refetchChildren } = useQuery(Q_CHILDREN, { variables: { parentId } })
-  const { data: dq, refetch: refetchQuests } = useQuery(Q_QUESTS, { variables: { parentId } })
-  const { data: dr, refetch: refetchRewards } = useQuery(Q_REWARDS, { variables: { parentId } })
-  const { data: ds } = useQuery(Q_SUB, { variables: { parentId } })
+  const { data: dc, refetch: refetchChildren } = useQuery(Q_CHILDREN, { variables: { familyId } })
+  const { data: dq, refetch: refetchQuests } = useQuery(Q_QUESTS, { variables: { familyId } })
+  const { data: dr, refetch: refetchRewards } = useQuery(Q_REWARDS, { variables: { familyId } })
+  const { data: ds } = useQuery(Q_SUB, { variables: { familyId } })
 
   const [createChild] = useMutation(M_CREATE_CHILD, { onCompleted: () => { setChildName(''); setShowAddChildForm(false); refetchChildren() } })
   const [updateChild] = useMutation(M_UPDATE_CHILD, { onCompleted: () => { setEditingChildId(null); setChildEditName(''); refetchChildren() } })
@@ -168,6 +169,12 @@ export default function ParentDashboard(){
   const sub = (ds as any)?.subscriptionStatus
 
   const pendingResetRef = useRef<(() => void) | null>(null)
+
+  useEffect(() => {
+    if (auth.role === 'PARENT' && auth.id && familyId && auth.familyId !== familyId) {
+      setAuthState(auth.id, auth.role, familyId)
+    }
+  }, [auth.familyId, auth.id, auth.role, familyId, setAuthState])
 
   const hideNotification = () => {
     if (pendingResetRef.current) {
@@ -221,7 +228,7 @@ export default function ParentDashboard(){
         confirmLabel: 'Assign quest',
         onConfirm: async () => {
           try {
-            const result = await assignQuest({ variables: { questId: quest.id, childId } })
+            const result = await assignQuest({ variables: { familyId, questId: quest.id, childId } })
             const payload = (result.data as any)?.assignQuest
             const cacheEntry = assignmentsCache.current[childId] ?? { quests: new Set<string>(), items: [] as AssignmentSummary[] }
             cacheEntry.quests.add(quest.id)
@@ -336,7 +343,7 @@ export default function ParentDashboard(){
           if (editingChildId === child.id) {
             cancelChildEdit()
           }
-          await deleteChildMutation({ variables: { parentId, childId: child.id } })
+          await deleteChildMutation({ variables: { familyId, childId: child.id } })
           delete assignmentsCache.current[child.id]
           if (activeAssignmentsChildId === child.id) {
             setActiveAssignmentsChildId(null)
@@ -374,7 +381,7 @@ export default function ParentDashboard(){
     if (!questId) return
     if (typeof window !== 'undefined' && !window.confirm('Delete this quest?')) return
     setOpenQuestActionsId(null)
-    await deleteQuestMutation({ variables: { parentId, questId } })
+    await deleteQuestMutation({ variables: { familyId, questId } })
   }
 
   const startRewardEdit = (reward: any) => {
@@ -395,17 +402,18 @@ export default function ParentDashboard(){
     if (!rewardId) return
     if (typeof window !== 'undefined' && !window.confirm('Delete this reward?')) return
     setOpenRewardActionsId(null)
-    await deleteRewardMutation({ variables: { parentId, rewardId } })
+    await deleteRewardMutation({ variables: { familyId, rewardId } })
   }
 
   return (
-    <div>
+    <div className="min-h-dvh flex flex-col bg-white text-zinc-900">
       <Header />
-      <div className="max-w-6xl mx-auto p-6 space-y-8">
-      <header className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Parent Dashboard</h1>
-        <div className="text-sm text-zinc-600">Parent: {parentId}{auth?.id?` • signed in as ${auth.role} ${auth.id}`:''}</div>
-      </header>
+      <main className="flex-1 bg-gradient-to-br from-indigo-50 to-cyan-50">
+        <div className="max-w-6xl mx-auto p-6 space-y-8">
+          <header className="flex items-center justify-between">
+            <h1 className="text-2xl font-semibold">Family Dashboard</h1>
+            <div className="text-sm text-zinc-600">Family: {familyId}{auth?.id?` • signed in as ${auth.role} ${auth.id}`:''}</div>
+          </header>
 
       <section className="grid md:grid-cols-3 gap-6">
         <Card>
@@ -417,9 +425,9 @@ export default function ParentDashboard(){
             <div className="text-sm">Status: {sub.active ? <Badge tone="success">Active</Badge> : <Badge tone="warning">Inactive</Badge>} {sub.currentPeriodEnd && `(until ${sub.currentPeriodEnd})`}</div>
           ) : null}
           <Button className="mt-3" onClick={async ()=>{
-            const success = location.origin + '/parent/' + parentId
+            const success = location.origin + '/family/' + familyId
             const cancel = location.href
-            const res = await checkout({ variables: { parentId, success, cancel } })
+            const res = await checkout({ variables: { familyId, success, cancel } })
             const url = (res as any).data?.createCheckoutSession || 'https://example.com/checkout'
             location.assign(url)
           }}>Subscribe</Button>
@@ -439,7 +447,7 @@ export default function ParentDashboard(){
                     onSubmit={async e => {
                       e.preventDefault()
                       if (!editingChildId) return
-                      await updateChild({ variables: { parentId, childId: editingChildId, name: childEditName } })
+                      await updateChild({ variables: { familyId, childId: editingChildId, name: childEditName } })
                     }}
                   >
                     <Input value={childEditName} onChange={e=>setChildEditName(e.target.value)} placeholder="Child name" autoFocus />
@@ -535,7 +543,7 @@ export default function ParentDashboard(){
           {!showAddChildForm ? (
             <Button type="button" className="mt-3" onClick={() => setShowAddChildForm(true)}>Add Child</Button>
           ) : (
-            <form className="mt-3 space-y-2" onSubmit={e=>{e.preventDefault(); createChild({ variables: { parentId, name: childName }})}}>
+            <form className="mt-3 space-y-2" onSubmit={e=>{e.preventDefault(); createChild({ variables: { familyId, name: childName }})}}>
               <Label className="mb-1">New child name</Label>
               <Input value={childName} onChange={e=>setChildName(e.target.value)} placeholder="e.g. Alex"/>
               <div className="flex gap-2">
@@ -642,7 +650,7 @@ export default function ParentDashboard(){
                       if (!editingQuestId) return
                       await updateQuest({
                         variables: {
-                          parentId,
+                          familyId,
                           questId: editingQuestId,
                           input: {
                             title: questEditDraft.title,
@@ -683,7 +691,7 @@ export default function ParentDashboard(){
           {!showAddQuestForm ? (
             <Button type="button" className="mt-3" onClick={() => setShowAddQuestForm(true)}>Add Quest</Button>
           ) : (
-            <form className="mt-3 space-y-2" onSubmit={e=>{e.preventDefault(); createQuest({ variables: { parentId, title: questTitle, description: questDesc || null, xp: questXP, gold: questGold }})}}>
+            <form className="mt-3 space-y-2" onSubmit={e=>{e.preventDefault(); createQuest({ variables: { familyId, title: questTitle, description: questDesc || null, xp: questXP, gold: questGold }})}}>
               <Label className="mb-1">Quest title</Label>
               <Input value={questTitle} onChange={e=>setQuestTitle(e.target.value)} placeholder="e.g. Clean Room"/>
               <Label className="mb-1">Description (optional)</Label>
@@ -787,7 +795,7 @@ export default function ParentDashboard(){
                       if (!editingRewardId) return
                       await updateReward({
                         variables: {
-                          parentId,
+                          familyId,
                           rewardId: editingRewardId,
                           input: {
                             name: rewardEditDraft.name,
@@ -818,7 +826,7 @@ export default function ParentDashboard(){
           {!showAddRewardForm ? (
             <Button type="button" className="mt-3" onClick={() => setShowAddRewardForm(true)}>Add Reward</Button>
           ) : (
-            <form className="mt-3 space-y-2" onSubmit={e=>{e.preventDefault(); createReward({ variables: { parentId, name: rewardName, xpThreshold: rewardXP }})}}>
+            <form className="mt-3 space-y-2" onSubmit={e=>{e.preventDefault(); createReward({ variables: { familyId, name: rewardName, xpThreshold: rewardXP }})}}>
               <Label className="mb-1">Reward name</Label>
               <Input value={rewardName} onChange={e=>setRewardName(e.target.value)} placeholder="e.g. Movie Night"/>
               <Label className="mb-1">XP threshold</Label>
@@ -849,7 +857,8 @@ export default function ParentDashboard(){
           </CardContent>
         </Card>
       </section>
-      </div>
+        </div>
+      </main>
       <NotificationModal
         open={!!notification}
         title={notification?.title ?? ''}

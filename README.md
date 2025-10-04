@@ -1,7 +1,7 @@
 Chorequest Monorepo (Go GraphQL + React + Tailwind)
 
 Overview
-- Backend: Go HTTP server with GraphQL (gqlgen), JWT middleware, DynamoDB client + table bootstrap.
+- Backend: Go HTTP server with GraphQL (gqlgen), JWT middleware, and SQLite persistence.
 - Frontend: React (Vite, TS), Tailwind v4, Apollo Client, Codegen config.
 
 Getting Started
@@ -9,23 +9,18 @@ Getting Started
    - Env (optional):
      - `JWT_SECRET`: HMAC secret for parsing Bearer tokens
      - `SQLITE_PATH`: path to a local SQLite database (`./data/dev.sqlite` for local dev)
-     - `AWS_REGION`: AWS region (default `us-east-1`)
-     - `DYNAMODB_ENDPOINT`: e.g. `http://localhost:8000` for local DynamoDB (only needed when migrating from Dynamo)
    - Local SQLite quick start:
      1. `export SQLITE_PATH=./data/dev.sqlite`
-     2. `go run ./cmd/migrate --sqlite $SQLITE_PATH` (optional: copies existing Dynamo data when Dynamo env vars are set)
-     3. `make dev-backend`
-   - DynamoDB path (legacy):
-     - Launch local DynamoDB: `make dynamodb-up` (exposes `http://localhost:8000`)
-     - Run: `DYNAMO_AUTO_MIGRATE=1 DYNAMODB_ENDPOINT=http://localhost:8000 make dev-backend`
-     - Seed: `DYNAMODB_ENDPOINT=http://localhost:8000 make seed` (env `SEED_PARENT_ID` optional)
+     2. `make migrate`
+     3. `make seed`
+     4. `make dev-backend`
    - Health: `GET http://localhost:8080/healthz`
 
 2) Frontend
    - Install deps: `make bootstrap`
    - Dev server: `make dev-web` (proxies `/query` to backend)
    - Routes:
-     - Parent Dashboard: `http://localhost:5173/parent/parent-1`
+     - Family Dashboard: `http://localhost:5173/family/<familyId>`
      - Child View: `http://localhost:5173/child/<childId>`
 
 3) Codegen (optional)
@@ -56,7 +51,7 @@ Capacitor Notes
 - Generate icons/splash after placing `resources/icon.png`: `npm run cap:assets`
 
 Containers
-- Full local stack: `make stack-up` (DynamoDB Local + API on :8080). Logs: `make stack-logs`. Tear down: `make stack-down`.
+- Full local stack: `make stack-up` (API + Web). Logs: `make stack-logs`. Tear down: `make stack-down`.
 
 Auth (Dev)
 - Start backend with `JWT_SECRET` set (e.g., `export JWT_SECRET=devsecret`).

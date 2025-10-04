@@ -10,7 +10,7 @@ type User {
 
 type Child {
   id: ID!
-  parentId: ID!
+  familyId: ID!
   name: String!
   xp: Int!
   gold: Int!
@@ -18,7 +18,7 @@ type Child {
 
 type Quest {
   id: ID!
-  parentId: ID!
+  familyId: ID!
   title: String!
   description: String
   xp: Int!
@@ -36,9 +36,16 @@ type Assignment {
 
 type Reward {
   id: ID!
-  parentId: ID!
+  familyId: ID!
   name: String!
   xpThreshold: Int!
+}
+
+type Family {
+  id: ID!
+  name: String!
+  ownerId: ID!
+  createdAt: String!
 }
 
 type AvatarItem {
@@ -51,19 +58,21 @@ type Query {
   health: String!
 
   # Parent-focused
-  children(parentId: ID!): [Child!]!
-  quests(parentId: ID!): [Quest!]!
-  rewards(parentId: ID!): [Reward!]!
+  children(familyId: ID!): [Child!]!
+  quests(familyId: ID!): [Quest!]!
+  rewards(familyId: ID!): [Reward!]!
+  family(id: ID!): Family
+  families(ownerId: ID!): [Family!]!
 
   # Child-focused
   myAssignments(childId: ID!): [Assignment!]!
 
   # Billing
-  subscriptionStatus(parentId: ID!): SubscriptionStatus!
+  subscriptionStatus(familyId: ID!): SubscriptionStatus!
 }
 
 input NewChild {
-  parentId: ID!
+  familyId: ID!
   name: String!
 }
 
@@ -72,7 +81,7 @@ input UpdateChildInput {
 }
 
 input NewQuest {
-  parentId: ID!
+  familyId: ID!
   title: String!
   description: String
   xp: Int!
@@ -80,9 +89,14 @@ input NewQuest {
 }
 
 input NewReward {
-  parentId: ID!
+  familyId: ID!
   name: String!
   xpThreshold: Int!
+}
+
+input NewFamily {
+  ownerId: ID!
+  name: String!
 }
 
 input UpdateQuestInput {
@@ -100,23 +114,26 @@ input UpdateRewardInput {
 type Mutation {
   # Parents
   createChild(input: NewChild!): Child!
-  updateChild(parentId: ID!, childId: ID!, input: UpdateChildInput!): Child!
-  deleteChild(parentId: ID!, childId: ID!): Boolean!
+  updateChild(familyId: ID!, childId: ID!, input: UpdateChildInput!): Child!
+  deleteChild(familyId: ID!, childId: ID!): Boolean!
   createQuest(input: NewQuest!): Quest!
-  assignQuest(questId: ID!, childId: ID!): Assignment!
+  assignQuest(familyId: ID!, questId: ID!, childId: ID!): Assignment!
   createReward(input: NewReward!): Reward!
-  updateQuest(parentId: ID!, questId: ID!, input: UpdateQuestInput!): Quest!
-  deleteQuest(parentId: ID!, questId: ID!): Boolean!
-  updateReward(parentId: ID!, rewardId: ID!, input: UpdateRewardInput!): Reward!
-  deleteReward(parentId: ID!, rewardId: ID!): Boolean!
+  updateQuest(familyId: ID!, questId: ID!, input: UpdateQuestInput!): Quest!
+  deleteQuest(familyId: ID!, questId: ID!): Boolean!
+  updateReward(familyId: ID!, rewardId: ID!, input: UpdateRewardInput!): Reward!
+  deleteReward(familyId: ID!, rewardId: ID!): Boolean!
+  deleteFamily(familyId: ID!): Boolean!
   deleteAssignment(assignmentId: ID!): Boolean!
+  createFamily(input: NewFamily!): Family!
+  renameFamily(familyId: ID!, name: String!): Family!
 
   # Children
   completeAssignment(assignmentId: ID!): Assignment!
   purchaseItem(childId: ID!, itemName: String!, priceGold: Int!): Child!
 
   # Billing
-  createCheckoutSession(parentId: ID!, successUrl: String!, cancelUrl: String!): String!
+  createCheckoutSession(familyId: ID!, successUrl: String!, cancelUrl: String!): String!
 }
 
 type SubscriptionStatus {

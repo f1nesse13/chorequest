@@ -5,8 +5,8 @@ SQLITE_PATH ?= ./data/dev.sqlite
 .PHONY: dev dev-backend build-backend dev-web gen codegen bootstrap ensure-env ensure-docker-env
 
 # Run the backend server in development mode
-dev-backend:
-	cd backend && go run ./cmd/server
+dev-backend: sqlite-db
+	cd backend && SQLITE_PATH=$(SQLITE_PATH) go run ./cmd/server
 
 # Build the backend server binary
 build-backend:
@@ -37,42 +37,26 @@ bootstrap:
 	cd web && npm install
 	cd backend && go mod tidy
 
-.PHONY: dynamodb-up dynamodb-down dynamodb-logs seed sqlite-db sqlite-migrate dev-backend-sqlite
+.PHONY: seed sqlite-db migrate
 
-# Start the local DynamoDB container
-dynamodb-up:
-	cd deploy && docker compose up -d dynamodb
-
-# Tear down the DynamoDB container
-dynamodb-down:
-	cd deploy && docker compose down
-
-# Tail logs from the DynamoDB container
-dynamodb-logs:
-	cd deploy && docker compose logs -f dynamodb
-
-# Seed the DynamoDB instance with starter data
-seed:
-	cd backend && DYNAMO_AUTO_MIGRATE=1 DYNAMODB_ENDPOINT=${DYNAMODB_ENDPOINT} go run ./cmd/seed
+# Seed the SQLite database with starter data
+seed: sqlite-db
+	cd backend && SQLITE_PATH=$(SQLITE_PATH) go run ./cmd/seed
 
 # Ensure the SQLite data directory / file exists
 sqlite-db:
 	cd backend && mkdir -p $(dir $(SQLITE_PATH)) && touch $(SQLITE_PATH)
 
-# Run the Dynamo -> SQLite migration (requires Dynamo env vars)
-sqlite-migrate: sqlite-db
+# Open the SQLite database to run migrations
+migrate: sqlite-db
 	cd backend && SQLITE_PATH=$(SQLITE_PATH) go run ./cmd/migrate --sqlite $(SQLITE_PATH)
-
-# Convenience target to run backend with SQLite enabled
-dev-backend-sqlite: sqlite-db
-	cd backend && SQLITE_PATH=$(SQLITE_PATH) go run ./cmd/server
 
 .PHONY: stack-up stack-down stack-logs
 
-# Start the full local stack (API, DynamoDB, Web)
+# Start the full local stack (API + Web)
 stack-up:
 	$(MAKE) ensure-docker-env
-	cd deploy && docker compose up -d --build api dynamodb web
+	cd deploy && docker compose up -d --build api web
 
 # Stop the local stack containers
 stack-down:
@@ -80,7 +64,7 @@ stack-down:
 
 # Tail logs across the stack services
 stack-logs:
-	cd deploy && docker compose logs -f api dynamodb web
+	cd deploy && docker compose logs -f api web
 
 # Ensure required Docker env files exist
 ensure-docker-env:

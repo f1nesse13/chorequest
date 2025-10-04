@@ -14,47 +14,158 @@ import (
 type MemoryRepo struct {
 	mu sync.RWMutex
 
+	families map[string]*model.Family
+
 	children map[string]*model.Child
 	quests   map[string]*model.Quest
 	rewards  map[string]*model.Reward
 
 	assignments map[string]*model.Assignment
 
-	childrenByParent   map[string][]string
-	questsByParent     map[string][]string
-	rewardsByParent    map[string][]string
+	childrenByFamily   map[string][]string
+	questsByFamily     map[string][]string
+	rewardsByFamily    map[string][]string
 	assignmentsByChild map[string][]string
 }
 
 func NewMemoryRepo() *MemoryRepo {
 	return &MemoryRepo{
+		families:           make(map[string]*model.Family),
 		children:           make(map[string]*model.Child),
 		quests:             make(map[string]*model.Quest),
 		rewards:            make(map[string]*model.Reward),
 		assignments:        make(map[string]*model.Assignment),
-		childrenByParent:   make(map[string][]string),
-		questsByParent:     make(map[string][]string),
-		rewardsByParent:    make(map[string][]string),
+		childrenByFamily:   make(map[string][]string),
+		questsByFamily:     make(map[string][]string),
+		rewardsByFamily:    make(map[string][]string),
 		assignmentsByChild: make(map[string][]string),
 	}
 }
 
+// Family operations
+func (r *MemoryRepo) CreateFamily(_ context.Context, in model.NewFamily) (*model.Family, error) {
+	if in.OwnerID == "" {
+		return nil, errors.New("ownerId required")
+	}
+	if in.Name == "" {
+		return nil, errors.New("name required")
+	}
+	id := uuid.NewString()
+	fam := &model.Family{ID: id, Name: in.Name, OwnerID: in.OwnerID, CreatedAt: NowRFC3339()}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.families[id] = fam
+	return cloneFamily(fam), nil
+}
+
+func (r *MemoryRepo) GetFamily(_ context.Context, familyID string) (*model.Family, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	fam, ok := r.families[familyID]
+	if !ok {
+		return nil, errors.New("family not found")
+	}
+	return cloneFamily(fam), nil
+}
+
+func (r *MemoryRepo) ListFamiliesForOwner(_ context.Context, ownerID string) ([]*model.Family, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	res := []*model.Family{}
+	for _, fam := range r.families {
+		if fam.OwnerID == ownerID {
+			res = append(res, cloneFamily(fam))
+		}
+	}
+	sort.Slice(res, func(i, j int) bool { return res[i].CreatedAt > res[j].CreatedAt })
+	return res, nil
+}
+
+func (r *MemoryRepo) RenameFamily(_ context.Context, familyID, name string) (*model.Family, error) {
+	if name == "" {
+		return nil, errors.New("name required")
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	fam, ok := r.families[familyID]
+	if !ok {
+		return nil, errors.New("family not found")
+	}
+	fam.Name = name
+	return cloneFamily(fam), nil
+}
+
+func (r *MemoryRepo) DeleteFamily(_ context.Context, familyID string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if _, ok := r.families[familyID]; !ok {
+		return errors.New("family not found")
+	}
+	delete(r.families, familyID)
+
+	if ids := r.childrenByFamily[familyID]; len(ids) > 0 {
+		for _, id := range ids {
+			delete(r.children, id)
+			if assigns := r.assignmentsByChild[id]; len(assigns) > 0 {
+				for _, aid := range assigns {
+					delete(r.assignments, aid)
+				}
+				delete(r.assignmentsByChild, id)
+			}
+		}
+		delete(r.childrenByFamily, familyID)
+	}
+
+	if ids := r.questsByFamily[familyID]; len(ids) > 0 {
+		for _, id := range ids {
+			delete(r.quests, id)
+		}
+		delete(r.questsByFamily, familyID)
+	}
+
+	if ids := r.rewardsByFamily[familyID]; len(ids) > 0 {
+		for _, id := range ids {
+			delete(r.rewards, id)
+		}
+		delete(r.rewardsByFamily, familyID)
+	}
+
+	return nil
+}
+
+// Helper ensures family exists (creates placeholder if needed).
+func (r *MemoryRepo) ensureFamilyUnlocked(familyID string) {
+	if familyID == "" {
+		return
+	}
+	if _, ok := r.families[familyID]; !ok {
+		r.families[familyID] = &model.Family{ID: familyID, Name: "Family " + familyID, OwnerID: familyID, CreatedAt: NowRFC3339()}
+	}
+}
+
+// Child operations
 func (r *MemoryRepo) CreateChild(_ context.Context, in model.NewChild) (*model.Child, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	if in.FamilyID == "" {
+		return nil, errors.New("familyId required")
+	}
+	r.ensureFamilyUnlocked(in.FamilyID)
+
 	id := uuid.NewString()
-	child := &model.Child{ID: id, ParentID: in.ParentID, Name: in.Name, Xp: 0, Gold: 0}
+	child := &model.Child{ID: id, FamilyID: in.FamilyID, Name: in.Name, Xp: 0, Gold: 0}
 	r.children[id] = child
-	r.childrenByParent[in.ParentID] = append(r.childrenByParent[in.ParentID], id)
+	r.childrenByFamily[in.FamilyID] = append(r.childrenByFamily[in.FamilyID], id)
 	return cloneChild(child), nil
 }
 
-func (r *MemoryRepo) ListChildren(_ context.Context, parentID string) ([]*model.Child, error) {
+func (r *MemoryRepo) ListChildren(_ context.Context, familyID string) ([]*model.Child, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	ids := r.childrenByParent[parentID]
+	ids := r.childrenByFamily[familyID]
 	res := make([]*model.Child, 0, len(ids))
 	for _, id := range ids {
 		if child, ok := r.children[id]; ok {
@@ -64,28 +175,39 @@ func (r *MemoryRepo) ListChildren(_ context.Context, parentID string) ([]*model.
 	return res, nil
 }
 
-func (r *MemoryRepo) UpdateChild(_ context.Context, parentID, childID string, in model.UpdateChildInput) (*model.Child, error) {
+func (r *MemoryRepo) GetChild(_ context.Context, childID string) (*model.Child, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	child, ok := r.children[childID]
+	if !ok {
+		return nil, errors.New("child not found")
+	}
+	return cloneChild(child), nil
+}
+
+func (r *MemoryRepo) UpdateChild(_ context.Context, familyID, childID string, in model.UpdateChildInput) (*model.Child, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	child, ok := r.children[childID]
-	if !ok || child.ParentID != parentID {
+	if !ok || child.FamilyID != familyID {
 		return nil, errors.New("child not found")
 	}
 	child.Name = in.Name
 	return cloneChild(child), nil
 }
 
-func (r *MemoryRepo) DeleteChild(_ context.Context, parentID, childID string) error {
+func (r *MemoryRepo) DeleteChild(_ context.Context, familyID, childID string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	child, ok := r.children[childID]
-	if !ok || child.ParentID != parentID {
+	if !ok || child.FamilyID != familyID {
 		return errors.New("child not found")
 	}
 	delete(r.children, childID)
-	r.childrenByParent[parentID] = removeString(r.childrenByParent[parentID], childID)
+	r.childrenByFamily[familyID] = removeString(r.childrenByFamily[familyID], childID)
 
 	if ids, ok := r.assignmentsByChild[childID]; ok {
 		for _, aid := range ids {
@@ -96,22 +218,28 @@ func (r *MemoryRepo) DeleteChild(_ context.Context, parentID, childID string) er
 	return nil
 }
 
+// Quest operations
 func (r *MemoryRepo) CreateQuest(_ context.Context, in model.NewQuest) (*model.Quest, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	if in.FamilyID == "" {
+		return nil, errors.New("familyId required")
+	}
+	r.ensureFamilyUnlocked(in.FamilyID)
+
 	id := uuid.NewString()
-	quest := &model.Quest{ID: id, ParentID: in.ParentID, Title: in.Title, Description: in.Description, Xp: in.Xp, Gold: in.Gold}
+	quest := &model.Quest{ID: id, FamilyID: in.FamilyID, Title: in.Title, Description: in.Description, Xp: in.Xp, Gold: in.Gold}
 	r.quests[id] = quest
-	r.questsByParent[in.ParentID] = append(r.questsByParent[in.ParentID], id)
+	r.questsByFamily[in.FamilyID] = append(r.questsByFamily[in.FamilyID], id)
 	return cloneQuest(quest), nil
 }
 
-func (r *MemoryRepo) ListQuests(_ context.Context, parentID string) ([]*model.Quest, error) {
+func (r *MemoryRepo) ListQuests(_ context.Context, familyID string) ([]*model.Quest, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	ids := r.questsByParent[parentID]
+	ids := r.questsByFamily[familyID]
 	res := make([]*model.Quest, 0, len(ids))
 	for _, id := range ids {
 		if quest, ok := r.quests[id]; ok {
@@ -132,12 +260,12 @@ func (r *MemoryRepo) GetQuestByID(_ context.Context, questID string) (*model.Que
 	return cloneQuest(quest), nil
 }
 
-func (r *MemoryRepo) UpdateQuest(_ context.Context, parentID, questID string, in model.UpdateQuestInput) (*model.Quest, error) {
+func (r *MemoryRepo) UpdateQuest(_ context.Context, familyID, questID string, in model.UpdateQuestInput) (*model.Quest, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	quest, ok := r.quests[questID]
-	if !ok || quest.ParentID != parentID {
+	if !ok || quest.FamilyID != familyID {
 		return nil, errors.New("quest not found")
 	}
 	quest.Title = in.Title
@@ -145,7 +273,6 @@ func (r *MemoryRepo) UpdateQuest(_ context.Context, parentID, questID string, in
 	quest.Xp = in.Xp
 	quest.Gold = in.Gold
 
-	// Update cached quest on assignments
 	for _, assignment := range r.assignments {
 		if assignment.Quest != nil && assignment.Quest.ID == questID {
 			assignment.Quest = cloneQuest(quest)
@@ -155,19 +282,18 @@ func (r *MemoryRepo) UpdateQuest(_ context.Context, parentID, questID string, in
 	return cloneQuest(quest), nil
 }
 
-func (r *MemoryRepo) DeleteQuest(_ context.Context, parentID, questID string) error {
+func (r *MemoryRepo) DeleteQuest(_ context.Context, familyID, questID string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	quest, ok := r.quests[questID]
-	if !ok || quest.ParentID != parentID {
+	if !ok || quest.FamilyID != familyID {
 		return errors.New("quest not found")
 	}
 
 	delete(r.quests, questID)
-	r.questsByParent[parentID] = removeString(r.questsByParent[parentID], questID)
+	r.questsByFamily[familyID] = removeString(r.questsByFamily[familyID], questID)
 
-	// Remove any assignments referencing this quest
 	for childID, ids := range r.assignmentsByChild {
 		filtered := ids[:0]
 		for _, aid := range ids {
@@ -187,15 +313,17 @@ func (r *MemoryRepo) DeleteQuest(_ context.Context, parentID, questID string) er
 	return nil
 }
 
-func (r *MemoryRepo) AssignQuest(_ context.Context, questID, childID string) (*model.Assignment, error) {
+// Assignment operations
+func (r *MemoryRepo) AssignQuest(_ context.Context, familyID, questID, childID string) (*model.Assignment, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	quest, ok := r.quests[questID]
-	if !ok {
+	if !ok || quest.FamilyID != familyID {
 		return nil, errors.New("quest not found")
 	}
-	if _, ok := r.children[childID]; !ok {
+	child, ok := r.children[childID]
+	if !ok || child.FamilyID != familyID {
 		return nil, errors.New("child not found")
 	}
 
@@ -223,10 +351,7 @@ func (r *MemoryRepo) ListAssignmentsForChild(_ context.Context, childID string) 
 			res = append(res, cloneAssignment(assignment))
 		}
 	}
-
-	sort.Slice(res, func(i, j int) bool {
-		return res[i].CreatedAt > res[j].CreatedAt
-	})
+	sort.Slice(res, func(i, j int) bool { return res[i].CreatedAt > res[j].CreatedAt })
 	return res, nil
 }
 
@@ -283,22 +408,28 @@ func (r *MemoryRepo) DeleteAssignment(_ context.Context, assignmentID string) er
 	return nil
 }
 
+// Reward operations
 func (r *MemoryRepo) CreateReward(_ context.Context, in model.NewReward) (*model.Reward, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	if in.FamilyID == "" {
+		return nil, errors.New("familyId required")
+	}
+	r.ensureFamilyUnlocked(in.FamilyID)
+
 	id := uuid.NewString()
-	reward := &model.Reward{ID: id, ParentID: in.ParentID, Name: in.Name, XpThreshold: in.XpThreshold}
+	reward := &model.Reward{ID: id, FamilyID: in.FamilyID, Name: in.Name, XpThreshold: in.XpThreshold}
 	r.rewards[id] = reward
-	r.rewardsByParent[in.ParentID] = append(r.rewardsByParent[in.ParentID], id)
+	r.rewardsByFamily[in.FamilyID] = append(r.rewardsByFamily[in.FamilyID], id)
 	return cloneReward(reward), nil
 }
 
-func (r *MemoryRepo) ListRewards(_ context.Context, parentID string) ([]*model.Reward, error) {
+func (r *MemoryRepo) ListRewards(_ context.Context, familyID string) ([]*model.Reward, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	ids := r.rewardsByParent[parentID]
+	ids := r.rewardsByFamily[familyID]
 	res := make([]*model.Reward, 0, len(ids))
 	for _, id := range ids {
 		if reward, ok := r.rewards[id]; ok {
@@ -308,12 +439,12 @@ func (r *MemoryRepo) ListRewards(_ context.Context, parentID string) ([]*model.R
 	return res, nil
 }
 
-func (r *MemoryRepo) UpdateReward(_ context.Context, parentID, rewardID string, in model.UpdateRewardInput) (*model.Reward, error) {
+func (r *MemoryRepo) UpdateReward(_ context.Context, familyID, rewardID string, in model.UpdateRewardInput) (*model.Reward, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	reward, ok := r.rewards[rewardID]
-	if !ok || reward.ParentID != parentID {
+	if !ok || reward.FamilyID != familyID {
 		return nil, errors.New("reward not found")
 	}
 	reward.Name = in.Name
@@ -321,17 +452,17 @@ func (r *MemoryRepo) UpdateReward(_ context.Context, parentID, rewardID string, 
 	return cloneReward(reward), nil
 }
 
-func (r *MemoryRepo) DeleteReward(_ context.Context, parentID, rewardID string) error {
+func (r *MemoryRepo) DeleteReward(_ context.Context, familyID, rewardID string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	reward, ok := r.rewards[rewardID]
-	if !ok || reward.ParentID != parentID {
+	if !ok || reward.FamilyID != familyID {
 		return errors.New("reward not found")
 	}
 
 	delete(r.rewards, rewardID)
-	r.rewardsByParent[parentID] = removeString(r.rewardsByParent[parentID], rewardID)
+	r.rewardsByFamily[familyID] = removeString(r.rewardsByFamily[familyID], rewardID)
 	return nil
 }
 
@@ -350,29 +481,33 @@ func (r *MemoryRepo) PurchaseItem(_ context.Context, childID, _ string, priceGol
 	return cloneChild(child), nil
 }
 
+// Demo seed data for dev usage.
 func (r *MemoryRepo) SeedDemoData() {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if len(r.children) > 0 || len(r.quests) > 0 || len(r.rewards) > 0 {
+	if len(r.families) > 0 {
 		return
 	}
 
-	parentID := "parent-1"
-	child := &model.Child{ID: "child-1", ParentID: parentID, Name: "Alex", Xp: 120, Gold: 45}
-	quest1 := &model.Quest{ID: "quest-1", ParentID: parentID, Title: "Clean Room", Description: strPtr("Tidy up and vacuum"), Xp: 50, Gold: 10}
-	quest2 := &model.Quest{ID: "quest-2", ParentID: parentID, Title: "Do Dishes", Description: strPtr("Load and run dishwasher"), Xp: 30, Gold: 8}
-	reward := &model.Reward{ID: "reward-1", ParentID: parentID, Name: "Movie Night", XpThreshold: 200}
+	familyID := "family-1"
+	ownerID := "parent-1"
+	r.families[familyID] = &model.Family{ID: familyID, Name: "Demo Family", OwnerID: ownerID, CreatedAt: NowRFC3339()}
+
+	child := &model.Child{ID: "child-1", FamilyID: familyID, Name: "Alex", Xp: 120, Gold: 45}
+	quest1 := &model.Quest{ID: "quest-1", FamilyID: familyID, Title: "Clean Room", Description: strPtr("Tidy up and vacuum"), Xp: 50, Gold: 10}
+	quest2 := &model.Quest{ID: "quest-2", FamilyID: familyID, Title: "Do Dishes", Description: strPtr("Load and run dishwasher"), Xp: 30, Gold: 8}
+	reward := &model.Reward{ID: "reward-1", FamilyID: familyID, Name: "Movie Night", XpThreshold: 200}
 
 	r.children[child.ID] = child
-	r.childrenByParent[parentID] = []string{child.ID}
+	r.childrenByFamily[familyID] = []string{child.ID}
 
 	r.quests[quest1.ID] = quest1
 	r.quests[quest2.ID] = quest2
-	r.questsByParent[parentID] = []string{quest1.ID, quest2.ID}
+	r.questsByFamily[familyID] = []string{quest1.ID, quest2.ID}
 
 	r.rewards[reward.ID] = reward
-	r.rewardsByParent[parentID] = []string{reward.ID}
+	r.rewardsByFamily[familyID] = []string{reward.ID}
 
 	assignment := &model.Assignment{
 		ID:        "assignment-1",
@@ -383,6 +518,14 @@ func (r *MemoryRepo) SeedDemoData() {
 	}
 	r.assignments[assignment.ID] = assignment
 	r.assignmentsByChild[child.ID] = []string{assignment.ID}
+}
+
+func cloneFamily(in *model.Family) *model.Family {
+	if in == nil {
+		return nil
+	}
+	out := *in
+	return &out
 }
 
 func cloneChild(in *model.Child) *model.Child {

@@ -18,9 +18,14 @@ export default function Login(){
     const res = await fetch(`/auth/dev?role=${role}&sub=${encodeURIComponent(id)}`, { method: 'POST' })
     const data = await res.json()
     await setToken(data.token)
-    setAuth(id, role)
+    const familyId = typeof data.familyId === 'string' && data.familyId.length > 0 ? data.familyId : null
+    setAuth(id, role, familyId ?? undefined)
     if (role === 'PARENT') {
-      location.assign(`/parent/${id}`)
+      if (familyId) {
+        location.assign(`/family/${familyId}`)
+      } else {
+        location.assign(`/login`)
+      }
     } else {
       location.assign(`/child/${id}`)
     }
@@ -52,7 +57,7 @@ export default function Login(){
                     </Select>
                   </div>
                   <div>
-                    <Label className="mb-1">ID</Label>
+                    <Label className="mb-1">User ID</Label>
                     <Input value={id} onChange={e=>setId(e.target.value)} placeholder="parent-1 or &lt;childId&gt;"/>
                   </div>
                   <Button type="submit" className="w-full">Continue</Button>
