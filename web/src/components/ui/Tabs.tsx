@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode, HTMLAttributes } from 'react'
+import { createContext, useContext, useState, ReactNode } from 'react'
 
 type TabsCtx = { index: number; setIndex: (i: number) => void }
 const Ctx = createContext<TabsCtx | null>(null)
